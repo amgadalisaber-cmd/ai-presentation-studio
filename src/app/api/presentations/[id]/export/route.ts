@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, logHistory, ownPresentation, parse } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -11,6 +12,6 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
   const running = await prisma.exportJob.findFirst({ where: { presentationId: id, status: { in: ["queued", "checking", "running"] } } });
   if (running) throw new ApiError(409, "An export is already in progress for this presentation.");
   const job = await prisma.exportJob.create({ data: { presentationId: id, formats: [...new Set(formats)] } });
-  enqueue("export", job.id); await logHistory(id, "export.queued", { formats });
+  await enqueue("export", job.id); await logHistory(id, "export.queued", { formats });
   return job;
 });

@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "./db";
 import { chromiumPath } from "./export/browser";
-import { STORAGE_DIR } from "./storage";
+import { STORAGE_DIR, STORAGE_BACKEND } from "./storage";
+import { INLINE_JOBS } from "./jobs/runner";
 import { imageProviderStatus } from "./images/nanobanana";
 
 export interface HealthCheck { key: string; label: string; ok: boolean; detail: string; fix?: string }
@@ -33,8 +34,11 @@ export async function checkHealth(): Promise<Health> {
   const chromium = chromiumPath();
   checks.push({ key: "chromium", label: "Chromium (PDF export, render validation)", ok: !!chromium, detail: chromium || "not found", fix: "Install Chrome/Chromium on the server and set CHROMIUM_PATH, or deploy with the provided Dockerfile. PowerPoint export works without it." });
   let storageOk = false; let storageDetail = STORAGE_DIR;
-  try { fs.mkdirSync(path.join(STORAGE_DIR, "exports"), { recursive: true }); const t = path.join(STORAGE_DIR, ".write-test"); fs.writeFileSync(t, "ok"); fs.unlinkSync(t); storageOk = true; } catch (e) { storageDetail = `${STORAGE_DIR} — ${sanitize((e as Error).message)}`; }
-  checks.push({ key: "storage", label: "File storage", ok: storageOk, detail: storageDetail, fix: "Make STORAGE_DIR writable (persistent disk). Serverless hosts have no persistent disk; use a VPS/Docker host." });
+  if (STORAGE_BACKEND === "vercel-blob") { storageOk = true; storageDetail = "Vercel Blob (BLOB_READ_WRITE_TOKEN set)"; }
+  else try { fs.mkdirSync(path.join(STORAGE_DIR, "exports"), { recursive: true }); const t = path.join(STORAGE_DIR, ".write-test"); fs.writeFileSync(t, "ok"); fs.unlinkSync(t); storageOk = true; } catch (e) { storageDetail = `${STORAGE_DIR} — ${sanitize((e as Error).message)}`; }
+  checks.push({ key: "storage", label: "File storage", ok: storageOk, detail: storageDetail + (process.env.VERCEL && STORAGE_BACKEND === "local" ? " — WARNING: temporary disk only on Vercel; connect a Blob store (BLOB_READ_WRITE_TOKEN) so uploads and exports persist." : ""), fix: process.env.VERCEL ? "On Vercel: Storage → Create → Blob, connect it to the project (sets BLOB_READ_WRITE_TOKEN) and redeploy." : "Make STORAGE_DIR writable (persistent disk)." });
+  if (process.env.VERCEL && STORAGE_BACKEND === "local") checks[checks.length - 1].ok = false;
+  checks.push({ key: "jobs", label: "Background jobs", ok: true, detail: INLINE_JOBS ? "inline mode (serverless): generation and export run inside the request; AI images are processed while the Images tab is open" : "background queue" });
   const img = imageProviderStatus();
   checks.push({ key: "gemini", label: "Nano Banana Pro (optional)", ok: true, detail: img.configured ? `configured · ${img.model}` : "GEMINI_API_KEY not set — AI images off, rule-based amend interpreter" });
   const fontsDir = path.join(process.cwd(), "public", "fonts");

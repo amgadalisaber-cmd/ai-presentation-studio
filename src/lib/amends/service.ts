@@ -62,7 +62,7 @@ export async function submitAmend(presentationId: string, slideId: string | null
           remapFragments(made, fragMeta);
           const newIds = await replaceOneSlide(presentationId, id, made);
           snapshot.createdSlideIds.push(...newIds);
-          if (ctx.aiImages) { const imgs = await createImageRequests(presentationId, newIds); for (const i of imgs) enqueue("image", i); }
+          if (ctx.aiImages) { const imgs = await createImageRequests(presentationId, newIds); for (const i of imgs) await enqueue("image", i); }
         }
         if (!slide && style) await prisma.presentation.update({ where: { id: presentationId }, data: { styleId: style.id } });
         applied.push(style ? `Re-laid out ${ids.length} slide(s) in ${style.name}` : `Re-laid out ${ids.length} slide(s)`);
@@ -88,7 +88,7 @@ export async function submitAmend(presentationId: string, slideId: string | null
         if (!img) { skipped.push("This slide has no AI image slot. Turn on AI images and regenerate the slide to add one."); continue; }
         const prompt = await imagePromptFor(presentationId, op.concept);
         await prisma.generatedImage.update({ where: { id: img.id }, data: { concept: op.concept, prompt, status: "pending", error: null } });
-        enqueue("image", img.id); applied.push("Queued a new AI image with the updated concept");
+        await enqueue("image", img.id); applied.push("Queued a new AI image with the updated concept");
       }
     }
     await runIntegrityCheck(presentationId);

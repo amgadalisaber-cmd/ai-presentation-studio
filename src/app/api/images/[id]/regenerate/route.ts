@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, logHistory, ownPresentation, parse } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -13,6 +14,6 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
   try { body = await parse(req, z.object({ concept: z.string().optional(), prompt: z.string().optional() })); } catch { body = {}; }
   const prompt = body.prompt?.trim() || (body.concept ? await imagePromptFor(img.presentationId, body.concept) : img.prompt);
   const updated = await prisma.generatedImage.update({ where: { id }, data: { status: "pending", error: null, prompt, concept: body.concept ?? img.concept } });
-  enqueue("image", id); await logHistory(img.presentationId, "image.regenerate", { imageId: id });
+  await enqueue("image", id); await logHistory(img.presentationId, "image.regenerate", { imageId: id });
   return updated;
 });

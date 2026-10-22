@@ -1,0 +1,4 @@
+{
+  "framework": "nextjs",
+  "functions": { "src/app/api/**/route.ts": { "memory": 3008, "maxDuration": 300 } }
+}

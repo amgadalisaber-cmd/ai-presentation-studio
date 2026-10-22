@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, logHistory, ownPresentation, parse } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -12,6 +13,6 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
   await prisma.styleProposal.update({ where: { id: proposalId }, data: { selected: true } });
   await prisma.presentation.update({ where: { id }, data: { styleId: prop.styleId, status: "processing" } });
   const job = await prisma.generationJob.create({ data: { presentationId: id, kind: "full", params: { styleId: prop.styleId, fromProposal: proposalId } } });
-  enqueue("generation", job.id); await logHistory(id, "proposal.selected", { proposalId, styleId: prop.styleId });
+  await enqueue("generation", job.id); await logHistory(id, "proposal.selected", { proposalId, styleId: prop.styleId });
   return job;
 });

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { checkHealth } from "@/lib/health";
+import { InitDbButton } from "@/components/InitDbButton";
 
 /** Public, read-only deployment status page (no secrets are shown). */
 export default async function StatusPage() {
@@ -18,7 +19,8 @@ export default async function StatusPage() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          {h.ok ? <Link href="/" className="btn-primary">Open the studio</Link> : <Link href="/status" className="btn-primary">Re-check</Link>}
+          {h.ok ? <Link href="/" className="btn-primary">Open the studio</Link> : <Link href="/status" className="btn-secondary">Re-check</Link>}
+          {h.checks.some((c) => c.key === "schema" && !c.ok) && h.checks.some((c) => c.key === "db" && c.ok) && <InitDbButton />}
           <span className="text-ink-500">Checked {new Date(h.checkedAt).toLocaleString()} · On the server you can also run <code>npm run doctor</code>.</span>
         </div>
         {!h.ok && <div className="card-pad text-sm space-y-2"><p className="font-medium">Typical first-run sequence on a server</p><pre className="rounded bg-ink-800 p-3 text-xs overflow-auto">{`cp .env.example .env   # set DATABASE_URL (PostgreSQL)\nnpm ci\nnpm run setup          # creates tables + seeds built-in styles\nnpm run build && npm start`}</pre><p className="text-ink-400">Or <code>docker compose up --build</code>, which includes PostgreSQL and Chromium. Serverless platforms (e.g. Vercel functions) are not supported: the app needs a persistent disk and background jobs.</p></div>}

@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, logHistory, ownPresentation, ownStyle, parse } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -10,6 +11,6 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
   const running = await prisma.generationJob.findFirst({ where: { presentationId: id, status: { in: ["queued", "running"] } } });
   if (running) throw new ApiError(409, "A generation job is already running for this presentation.");
   const job = await prisma.generationJob.create({ data: { presentationId: id, kind: "slides", params: { slideIds: body.slideIds, styleId: body.styleId ?? null } } });
-  enqueue("generation", job.id); await logHistory(id, "generation.slides.queued", { slideIds: body.slideIds });
+  await enqueue("generation", job.id); await logHistory(id, "generation.slides.queued", { slideIds: body.slideIds });
   return job;
 });

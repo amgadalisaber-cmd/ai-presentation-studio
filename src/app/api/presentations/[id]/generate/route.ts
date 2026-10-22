@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, logHistory, ownPresentation, ownStyle, parse } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -26,8 +27,8 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
     for (const sid of ids) await ownStyle(userId, sid);
     await prisma.presentation.update({ where: { id }, data: { threeStyleMode: true, status: "processing" } });
     const job = await prisma.generationJob.create({ data: { presentationId: id, kind: "three_styles", params: { styleIds: ids } } });
-    enqueue("generation", job.id); await logHistory(id, "generation.three_styles.queued", { styleIds: ids });
-    return job;
+    await enqueue("generation", job.id); await logHistory(id, "generation.three_styles.queued", { styleIds: ids });
+    return prisma.generationJob.findUnique({ where: { id: job.id } });
   }
   let styleId = body.styleId ?? p.styleId;
   if (!styleId) {
@@ -39,6 +40,6 @@ export const POST = handler<{ id: string }>(async (req, { id }, userId) => {
   await ownStyle(userId, styleId);
   await prisma.presentation.update({ where: { id }, data: { styleId, threeStyleMode: false, status: "processing" } });
   const job = await prisma.generationJob.create({ data: { presentationId: id, kind: "full", params: { styleId } } });
-  enqueue("generation", job.id); await logHistory(id, "generation.full.queued", { styleId });
-  return job;
+  await enqueue("generation", job.id); await logHistory(id, "generation.full.queued", { styleId });
+  return prisma.generationJob.findUnique({ where: { id: job.id } });
 });

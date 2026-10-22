@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { z } from "zod";
 import { handler, ownPresentation, parse } from "@/lib/api";
 import { listAmends, submitAmend } from "@/lib/amends/service";

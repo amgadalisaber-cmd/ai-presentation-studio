@@ -14,10 +14,31 @@ const g = globalThis as unknown as { __jobs?: { queue: { kind: Kind; id: string 
 const state = g.__jobs ?? (g.__jobs = { queue: [], running: new Set(), active: 0 });
 const CONCURRENCY = 2;
 
-export function enqueue(kind: Kind, id: string) {
+/** Serverless hosts cannot run background work after the response: jobs run inside the request instead. */
+export const INLINE_JOBS = process.env.JOBS_MODE === "inline" || (!!process.env.VERCEL && process.env.JOBS_MODE !== "background");
+
+export async function runJob(kind: Kind, id: string) {
+  if (kind === "generation") await runGeneration(id);
+  else if (kind === "export") await runExport(id);
+  else await runImage(id);
+}
+
+/**
+ * Schedules a job. Background mode returns immediately; inline mode awaits generation/export jobs.
+ * Image jobs are never awaited inline (they are processed one per request by the images endpoint).
+ */
+export async function enqueue(kind: Kind, id: string): Promise<void> {
+  if (INLINE_JOBS) { if (kind === "image") return; await runJob(kind, id); return; }
   if (state.running.has(id) || state.queue.some((q) => q.id === id)) return;
   state.queue.push({ kind, id });
   void pump();
+}
+
+/** Inline mode helper: process up to `max` pending images of a presentation within the current request. */
+export async function processPendingImages(presentationId: string, max = 1) {
+  const pending = await prisma.generatedImage.findMany({ where: { presentationId, status: "pending" }, orderBy: { createdAt: "asc" }, take: max });
+  for (const img of pending) await runImage(img.id);
+  return pending.length;
 }
 
 async function pump() {
@@ -25,11 +46,8 @@ async function pump() {
     const job = state.queue.shift()!;
     state.active++; state.running.add(job.id);
     (async () => {
-      try {
-        if (job.kind === "generation") await runGeneration(job.id);
-        else if (job.kind === "export") await runExport(job.id);
-        else await runImage(job.id);
-      } catch (e) { console.error(`[jobs] ${job.kind} ${job.id} crashed`, e); }
+      try { await runJob(job.kind, job.id); }
+      catch (e) { console.error(`[jobs] ${job.kind} ${job.id} crashed`, e); }
       finally { state.active--; state.running.delete(job.id); void pump(); }
     })();
   }
@@ -37,6 +55,7 @@ async function pump() {
 
 /** Re-queue jobs left in queued/running state (e.g. after a restart). */
 export async function resumePendingJobs() {
+  if (INLINE_JOBS) return;
   const gens = await prisma.generationJob.findMany({ where: { status: { in: ["queued", "running"] } } });
   for (const j of gens) { if (j.status === "running") await prisma.generationJob.update({ where: { id: j.id }, data: { status: "queued" } }); enqueue("generation", j.id); }
   const exps = await prisma.exportJob.findMany({ where: { status: { in: ["queued", "checking", "running"] } } });
@@ -65,7 +84,7 @@ async function runGeneration(id: string) {
     else if (job.kind === "slides") result = await runRegenerateSlides(job.presentationId, params.slideIds || [], params.styleId ?? null, log);
     else throw new Error(`Unknown generation kind ${job.kind}`);
     const imageIds = (result as { imageIds?: string[] } | null)?.imageIds || [];
-    for (const i of imageIds) enqueue("image", i);
+    for (const i of imageIds) await enqueue("image", i);
     await prisma.generationJob.update({ where: { id }, data: { status: "completed", finishedAt: new Date(), progress: 100, result: { logs, ...(result as object || {}) } as Prisma.InputJsonValue } });
     await prisma.presentation.update({ where: { id: job.presentationId }, data: { status: "awaiting_review" } });
     await history(job.presentationId, `generation.${job.kind}.completed`, { logs });
