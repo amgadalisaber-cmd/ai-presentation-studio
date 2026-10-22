@@ -160,11 +160,15 @@ async function runExport(id: string) {
 
     // 1. render validation (overflow, missing images) + 2. integrity
     const extraFontCss = await userFontCss(job.presentation.userId, true);
-    const { validation } = await renderDeck(slides, htmlResolve, job.presentation.name, { pdf: false, extraFontCss });
+    let validation: { overflows: { slideIndex: number; elementId: string; text: string; overflowPx: number }[]; missingImages: { slideIndex: number; src: string }[] } = { overflows: [], missingImages: [] };
+    let chromiumOk = true;
+    try { validation = (await renderDeck(slides, htmlResolve, job.presentation.name, { pdf: false, extraFontCss })).validation; }
+    catch (e) { chromiumOk = false; if (formats.includes("pdf")) throw e; warnings.push(`Render validation skipped: ${(e as Error).message}`); }
     const extra: IntegrityIssue[] = validation.overflows.map((o) => ({ severity: "warning", code: "overflow", slideIndex: o.slideIndex, elementId: o.elementId, message: `Text overflows its box by ${o.overflowPx}px on slide ${o.slideIndex + 1}: "${o.text}…"` }));
     for (const m of validation.missingImages) warnings.push(`Slide ${m.slideIndex + 1}: image failed to load (${m.src}).`);
     const report = await runIntegrityCheck(job.presentationId, extra);
     for (const o of validation.overflows) warnings.push(`Slide ${o.slideIndex + 1}: text overflow (${o.overflowPx}px) — consider regenerating the slide.`);
+    void chromiumOk;
     await prisma.exportJob.update({ where: { id }, data: { status: "running", integrity: report as unknown as Prisma.InputJsonValue, verified: report.ok, warnings } });
 
     // 3. generate files

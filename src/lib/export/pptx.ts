@@ -46,8 +46,8 @@ export async function buildPptx(slides: SlideModel[], resolve: DataResolver, tit
       const css = `background-color:${bg.color || "#fff"};background:${bgCss.join(",")};`;
       const key = css.length > 5000 ? `${bg.imageSrc}|${bg.overlay}|${bg.gradient}` : css;
       let data = bgCache.get(key);
-      if (!data) { data = `image/jpeg;base64,${(await rasterizeBackground(css, "jpeg", { w: W, h: H })).toString("base64")}`; bgCache.set(key, data); }
-      slide.background = { data };
+      if (!data) { try { data = `image/jpeg;base64,${(await rasterizeBackground(css, "jpeg", { w: W, h: H })).toString("base64")}`; bgCache.set(key, data); } catch (e) { warnings.push(`Slide ${s.index + 1}: gradient/overlay background exported as a solid color (${(e as Error).message.split(".")[0]}).`); } }
+      if (data) slide.background = { data }; else slide.background = { color: toPptxColor(bg.color || "#ffffff").color || "FFFFFF" };
     } else {
       slide.background = { color: toPptxColor(bg.color || "#ffffff").color || "FFFFFF" };
     }
