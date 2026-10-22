@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { isDatabaseError } from "./health";
 
 const COOKIE = "studio_session";
 const TTL_DAYS = 30;
@@ -16,10 +17,17 @@ export async function getCurrentUser() {
   return session.user;
 }
 
+/** Server components: send the visitor to the diagnostics page instead of a blank production error when the DB is down. */
 export async function requireUser() {
-  const user = await getCurrentUser();
+  let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
+  try { user = await getCurrentUser(); }
+  catch (e) { if (isDatabaseError(e)) redirect("/status"); throw e; }
   if (!user) redirect("/login");
   return user;
+}
+
+export async function safeUserCount() {
+  try { return await userCount(); } catch (e) { if (isDatabaseError(e)) redirect("/status"); throw e; }
 }
 
 export async function requireApiUser() {

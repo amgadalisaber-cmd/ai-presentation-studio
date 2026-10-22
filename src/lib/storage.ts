@@ -5,7 +5,8 @@ import crypto from "crypto";
 export const STORAGE_DIR = path.resolve(process.cwd(), process.env.STORAGE_DIR || "./storage");
 
 export async function ensureDirs() {
-  for (const d of ["uploads", "generated", "exports"]) await fs.mkdir(path.join(STORAGE_DIR, d), { recursive: true });
+  try { for (const d of ["uploads", "generated", "exports"]) await fs.mkdir(path.join(STORAGE_DIR, d), { recursive: true }); }
+  catch (e) { console.error(`[storage] Cannot create ${STORAGE_DIR}: ${(e as Error).message}. Set STORAGE_DIR to a writable directory.`); throw e; }
 }
 
 export function safeExt(fileName: string) {

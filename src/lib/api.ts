@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError, type ZodSchema } from "zod";
 import { ApiError, requireApiUser } from "./auth";
 import { prisma } from "./db";
+import { isDatabaseError } from "./health";
 
 export type Ctx<P = Record<string, string>> = { params: Promise<P> };
 
@@ -29,6 +30,7 @@ export function errorResponse(e: unknown) {
   if (e instanceof ZodError) return NextResponse.json({ error: "Invalid input", details: e.flatten() }, { status: 400 });
   const msg = (e as Error)?.message || "Unexpected error";
   console.error("[api]", e);
+  if (isDatabaseError(e)) return NextResponse.json({ error: "Database unavailable. Open /status on this server for diagnostics (check DATABASE_URL, that PostgreSQL is running, and that `npm run setup` created the tables)." }, { status: 503 });
   return NextResponse.json({ error: msg }, { status: 500 });
 }
 
