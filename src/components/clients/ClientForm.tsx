@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/client";
 import { Alert, Field, Toggle } from "@/components/ui";
+import { FontSelect } from "@/components/FontSelect";
 
 export interface ClientValue { name: string; legalName: string; isClient: boolean; industry: string; description: string; website: string; positioning: string; personality: string; targetAudience: string; colors: { name?: string; hex: string; role?: string }[]; typography: { headingFont?: string; bodyFont?: string; arabicHeadingFont?: string; arabicBodyFont?: string; notes?: string } }
 export const emptyClient: ClientValue = { name: "", legalName: "", isClient: true, industry: "", description: "", website: "", positioning: "", personality: "", targetAudience: "", colors: [], typography: {} };
@@ -38,10 +39,10 @@ export function ClientForm({ initial, id }: { initial: ClientValue; id?: string 
           <button className="btn-secondary btn-sm" onClick={() => set("colors", [...v.colors, { hex: "#000000", role: v.colors.length ? "" : "primary" }])}>Add color</button></div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Heading font (Latin)" hint="Font name as installed on viewers' machines; bundled: Inter, Cairo."><input className="input" value={v.typography.headingFont || ""} onChange={(e) => set("typography", { ...v.typography, headingFont: e.target.value })} /></Field>
-        <Field label="Body font (Latin)"><input className="input" value={v.typography.bodyFont || ""} onChange={(e) => set("typography", { ...v.typography, bodyFont: e.target.value })} /></Field>
-        <Field label="Arabic heading font"><input className="input" value={v.typography.arabicHeadingFont || ""} onChange={(e) => set("typography", { ...v.typography, arabicHeadingFont: e.target.value })} /></Field>
-        <Field label="Arabic body font"><input className="input" value={v.typography.arabicBodyFont || ""} onChange={(e) => set("typography", { ...v.typography, arabicBodyFont: e.target.value })} /></Field>
+        <Field label="Heading font (Latin)" hint="Bundled and uploaded fonts are embedded in PDF; system fonts must be installed on the viewing machine."><FontSelect value={v.typography.headingFont || ""} onChange={(f) => set("typography", { ...v.typography, headingFont: f })} /></Field>
+        <Field label="Body font (Latin)"><FontSelect value={v.typography.bodyFont || ""} onChange={(f) => set("typography", { ...v.typography, bodyFont: f })} /></Field>
+        <Field label="Arabic heading font"><FontSelect arabic value={v.typography.arabicHeadingFont || ""} onChange={(f) => set("typography", { ...v.typography, arabicHeadingFont: f })} /></Field>
+        <Field label="Arabic body font"><FontSelect arabic value={v.typography.arabicBodyFont || ""} onChange={(f) => set("typography", { ...v.typography, arabicBodyFont: f })} /></Field>
       </div>
       <Field label="Typography notes"><textarea className="textarea min-h-[60px]" value={v.typography.notes || ""} onChange={(e) => set("typography", { ...v.typography, notes: e.target.value })} /></Field>
       <div className="flex justify-end"><button className="btn-primary" disabled={busy} onClick={save}>{id ? "Save profile" : "Create profile"}</button></div>

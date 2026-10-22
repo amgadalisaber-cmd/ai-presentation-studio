@@ -7,21 +7,23 @@ import { Alert, Field, Toggle, Modal } from "@/components/ui";
 import { CompanySelect, type CompanyLite } from "./CompanySelect";
 import { PRESENTATION_TYPES } from "@/lib/generation/types";
 import { detectPresentationLanguage, parseContent } from "@/lib/content/parser";
+import { StylePicker, type PickerStyle } from "@/components/styles/StylePicker";
+import { TONES } from "@/lib/types";
 
 export interface SetupValue {
-  name: string; type: string; customType: string; language: "ar" | "en" | "ar-en" | "other"; content: string; contentSource: "paste" | "upload" | "import" | "saved";
+  name: string; type: string; customType: string; language: "ar" | "en" | "ar-en" | "other"; orientation: "landscape" | "portrait"; content: string; contentSource: "paste" | "upload" | "import" | "saved";
   styleId: string | null; customDirection: string; threeStyleMode: boolean; aiImages: boolean; presentedByEnabled: boolean; presentedToEnabled: boolean; projectNotes: string;
-  metadata: { date?: string; version?: string; preparedBy?: string; confidentiality?: string; projectName?: string; referenceNumber?: string; custom?: { label: string; value: string }[]; colorMode?: "auto" | "style" | "brand" };
+  metadata: { date?: string; version?: string; preparedBy?: string; confidentiality?: string; projectName?: string; referenceNumber?: string; custom?: { label: string; value: string }[]; colorMode?: "auto" | "style" | "brand"; tone?: string; voice?: string };
   participants: { companyId: string; name: string; role: "primary" | "secondary" | "partner" | "sponsor" | "collaborator" | "other"; roleLabel?: string; instructions?: string }[];
   presentedBy: Entry[]; presentedTo: Entry[];
 }
 export interface Entry { companyId?: string | null; name: string; customName?: string | null; title?: string; contactName?: string; department?: string; logoAssetId?: string | null; showLogo: boolean; logos?: { id: string; name: string }[] }
 
-export const emptySetup: SetupValue = { name: "", type: "Corporate Presentation", customType: "", language: "en", content: "", contentSource: "paste", styleId: null, customDirection: "", threeStyleMode: false, aiImages: false, presentedByEnabled: true, presentedToEnabled: true, projectNotes: "", metadata: { colorMode: "auto" }, participants: [], presentedBy: [], presentedTo: [] };
+export const emptySetup: SetupValue = { name: "", type: "Corporate Presentation", customType: "", language: "en", orientation: "landscape", content: "", contentSource: "paste", styleId: null, customDirection: "", threeStyleMode: false, aiImages: false, presentedByEnabled: true, presentedToEnabled: true, projectNotes: "", metadata: { colorMode: "auto" }, participants: [], presentedBy: [], presentedTo: [] };
 
 const ROLES = ["primary", "secondary", "partner", "sponsor", "collaborator", "other"] as const;
 
-export function PresentationSetup({ initial, presentationId, styles, customTypes, hasSlides }: { initial: SetupValue; presentationId?: string; styles: { id: string; name: string; isBuiltIn: boolean; description?: string | null }[]; customTypes: string[]; hasSlides?: boolean }) {
+export function PresentationSetup({ initial, presentationId, styles, customTypes, hasSlides }: { initial: SetupValue; presentationId?: string; styles: PickerStyle[]; customTypes: string[]; hasSlides?: boolean }) {
   const router = useRouter();
   const [v, setV] = useState<SetupValue>(initial);
   const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [langAuto, setLangAuto] = useState(!presentationId);
@@ -67,6 +69,9 @@ export function PresentationSetup({ initial, presentationId, styles, customTypes
           <Field label="Presentation type *" hint="Influences structure and layout suggestions only; never changes your content."><div className="flex gap-2"><select className="select" value={v.type} onChange={(e) => set("type", e.target.value)}>{types.map((t) => <option key={t}>{t}</option>)}</select>{v.type === "Custom" && <input className="input" placeholder="Custom type" value={v.customType} onChange={(e) => set("customType", e.target.value)} />}</div></Field>
           <Field label="Presentation language" hint={detected ? `Detected: ${labelLang(detected)}${langAuto ? " (auto)" : " — manual override"}` : "Detected automatically from the content; you can override it."}>
             <select className="select" value={v.language} onChange={(e) => { setLangAuto(false); set("language", e.target.value as SetupValue["language"]); }}><option value="ar">Arabic</option><option value="en">English</option><option value="ar-en">Arabic and English</option><option value="other">Other</option></select>
+          </Field>
+          <Field label="Orientation" hint="Horizontal 16:9 (1920×1080) for screens; vertical 9:16 (1080×1920) for stories, mobile and print-like decks.">
+            <div className="grid grid-cols-2 gap-2">{([["landscape", "Horizontal", "w-10 h-6"], ["portrait", "Vertical", "w-6 h-10"]] as const).map(([k, label, box]) => <button key={k} type="button" onClick={() => set("orientation", k)} className={`card flex items-center gap-3 px-3 py-2 text-sm hover:border-ink-500 ${v.orientation === k ? "border-accent ring-1 ring-accent/40" : ""}`}><span className={`${box} rounded-sm border-2 ${v.orientation === k ? "border-accent" : "border-ink-500"}`} />{label}</button>)}</div>
           </Field>
           <Field label="Content source"><select className="select" value={v.contentSource} onChange={(e) => set("contentSource", e.target.value as SetupValue["contentSource"])}><option value="paste">Paste content</option><option value="upload">Upload a document</option><option value="import">Import from a previous presentation</option><option value="saved">Use saved project content</option></select></Field>
         </div>
@@ -120,8 +125,12 @@ export function PresentationSetup({ initial, presentationId, styles, customTypes
       {/* Visual direction */}
       <section className="card-pad space-y-4">
         <div><h2 className="h2">Visual direction</h2><p className="muted text-sm">Brand identity (from client profiles) is separate from art direction (visual style). Any style can be used with any client.</p></div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Saved visual style" hint="Leave empty to be asked at generation time, or run the three-example comparison."><select className="select" value={v.styleId || ""} onChange={(e) => set("styleId", e.target.value || null)}><option value="">— None selected —</option>{styles.map((s) => <option key={s.id} value={s.id}>{s.name}{s.isBuiltIn ? "" : " (custom)"}</option>)}</select></Field>
+        <Field label="Visual style" hint="Pick a saved direction (previews use your orientation and tone). Leave empty to be asked at generation time, or run the three-example comparison.">
+          <StylePicker styles={styles} value={v.styleId ? [v.styleId] : []} onChange={(ids) => set("styleId", ids[0] || null)} orientation={v.orientation} tone={v.metadata.tone} />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Field label="Tone & voice" hint="Overrides the style's own tone; shapes image prompts and visual knobs (weight, rounding, spacing). Never changes wording."><select className="select" value={v.metadata.tone || ""} onChange={(e) => set("metadata", { ...v.metadata, tone: e.target.value || undefined })}><option value="">Style default</option>{TONES.map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></Field>
+          <Field label="Voice description (optional)"><input className="input" placeholder="e.g. confident, witty, no corporate clichés" value={v.metadata.voice || ""} onChange={(e) => set("metadata", { ...v.metadata, voice: e.target.value })} /></Field>
           <Field label="Brand color behaviour" hint="Auto follows the style's own rule; override to force the style palette or let the primary brand's colors dominate."><select className="select" value={v.metadata.colorMode || "auto"} onChange={(e) => set("metadata", { ...v.metadata, colorMode: e.target.value as "auto" | "style" | "brand" })}><option value="auto">Auto (style decides)</option><option value="style">Style palette only (brand colors in logos)</option><option value="brand">Primary brand colors dominate</option></select></Field>
         </div>
         <Field label="Custom art direction (optional)" hint="Free-text direction applied on top of the selected style (used for image prompts and notes)."><textarea className="textarea min-h-[80px]" value={v.customDirection} onChange={(e) => set("customDirection", e.target.value)} placeholder="e.g. Cinematic, desert-at-dusk palette, no stock-photo feel, keep imagery abstract." /></Field>

@@ -7,6 +7,7 @@ import { buildPptx } from "../export/pptx";
 import type { SlideModel } from "../types";
 import type { Prisma } from "@prisma/client";
 import type { IntegrityIssue } from "../content/verify";
+import { userFontCss } from "../fonts";
 
 type Kind = "generation" | "export" | "image";
 const g = globalThis as unknown as { __jobs?: { queue: { kind: Kind; id: string }[]; running: Set<string>; active: number } };
@@ -158,7 +159,8 @@ async function runExport(id: string) {
     if (pending) warnings.push(`${pending} AI image(s) are not ready and were exported as empty areas.`);
 
     // 1. render validation (overflow, missing images) + 2. integrity
-    const { validation } = await renderDeck(slides, htmlResolve, job.presentation.name, { pdf: false });
+    const extraFontCss = await userFontCss(job.presentation.userId, true);
+    const { validation } = await renderDeck(slides, htmlResolve, job.presentation.name, { pdf: false, extraFontCss });
     const extra: IntegrityIssue[] = validation.overflows.map((o) => ({ severity: "warning", code: "overflow", slideIndex: o.slideIndex, elementId: o.elementId, message: `Text overflows its box by ${o.overflowPx}px on slide ${o.slideIndex + 1}: "${o.text}…"` }));
     for (const m of validation.missingImages) warnings.push(`Slide ${m.slideIndex + 1}: image failed to load (${m.src}).`);
     const report = await runIntegrityCheck(job.presentationId, extra);
@@ -169,7 +171,7 @@ async function runExport(id: string) {
     for (const fmt of formats) {
       const base = job.presentation.name.replace(/[^\p{L}\p{N}_\- ]+/gu, "").trim().replace(/\s+/g, "-") || "presentation";
       if (fmt === "pdf") {
-        const { pdf } = await renderDeck(slides as SlideModel[], htmlResolve, job.presentation.name, { pdf: true });
+        const { pdf } = await renderDeck(slides as SlideModel[], htmlResolve, job.presentation.name, { pdf: true, extraFontCss });
         const rel = await saveFile("exports", pdf!, `${base}.pdf`);
         await prisma.exportedFile.create({ data: { exportJobId: id, format: "pdf", fileName: `${base}.pdf`, storagePath: rel, size: pdf!.length } });
       } else {

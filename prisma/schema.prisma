@@ -19,6 +19,7 @@ model User {
   presentations Presentation[]
   assets        BrandAsset[]
   settings      UserSetting[]
+  fonts         UserFont[]
 }
 
 model Session {
@@ -114,6 +115,8 @@ model VisualStyle {
   density       String?
   decorative    String?
   negative      String?
+  tone          String?  // serious | professional | fun | playful | bold | calm | luxurious | energetic | friendly | technical | inspirational | minimal
+  voice         String?  // free-text voice description used in image prompts and layout knobs
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   references    StyleReference[]
@@ -151,6 +154,7 @@ model Presentation {
   type            String
   customType      String?
   language        String   @default("en") // ar | en | ar-en | other
+  orientation     String   @default("landscape") // landscape | portrait
   languageDetected String?
   status          String   @default("draft") // draft | processing | awaiting_review | completed | failed | exporting | ready
   sourceContent   String   @default("")      // immutable original content
@@ -178,6 +182,7 @@ model Presentation {
   exportJobs      ExportJob[]
   history         ProjectHistory[]
   proposals       StyleProposal[]
+  amends          Amend[]
 }
 
 /// Clients/brands involved in the presentation, with a role.
@@ -234,6 +239,8 @@ model Slide {
   presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
   index          Int
   layoutKey      String
+  width          Int          @default(1920)
+  height         Int          @default(1080)
   purpose        String       @default("content") // cover | section | content | list | quote | participants | closing | image
   background     Json         @default("{}")
   styleId        String?
@@ -351,4 +358,35 @@ model ProjectHistory {
   action         String
   details        Json?
   createdAt      DateTime     @default(now())
+}
+
+/// Amend conversation: revision requests per slide (slideId set) or for the whole presentation (slideId null).
+model Amend {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  slideId        String?
+  role           String       // user | assistant
+  message        String
+  operations     Json?
+  status         String       @default("none") // none | applied | partial | failed | undone | unclear
+  snapshot       Json?        // slide(s) + block texts before the amend, for undo
+  interpreter    String?      // ai | rules
+  createdAt      DateTime     @default(now())
+}
+
+/// Uploaded fonts (TTF/OTF/WOFF/WOFF2) available to styles, clients and the editor; embedded in PDF exports.
+model UserFont {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family         String
+  weight         Int      @default(400)
+  style          String   @default("normal")
+  fileName       String
+  mimeType       String
+  storagePath    String
+  size           Int
+  supportsArabic Boolean  @default(false)
+  createdAt      DateTime @default(now())
 }

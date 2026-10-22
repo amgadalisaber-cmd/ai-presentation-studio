@@ -39,7 +39,7 @@ The first visit opens the **workspace setup** page to create the owner account. 
 ### Tests
 
 ```bash
-npm test                 # core pipeline: EN / AR / mixed × 3 styles, multi-client, multi Presented By/To,
+npm test                 # core pipeline (also: tests/amends.ts, tests/portrait.ts): EN / AR / mixed × 3 styles, multi-client, multi Presented By/To,
                          # long content (overflow → extra slides, fragments), per-slide regeneration, PPTX + PDF
 npm run test:browser     # full UI flow in headless Chromium against a running server (setup → client → presentation →
                          # three-style comparison → editor → export downloads → images-ON path without key)
@@ -54,8 +54,9 @@ npm run preview "<presentation name>" 6   # screenshots of a stored deck to test
 | --- | --- |
 | **Dashboard** | Recent presentations, create / rename / duplicate / delete, saved clients, saved styles, recent generation and export activity. |
 | **Presentations** | Project list with search and status filter. Each project owns its content, configuration, brands, direction, generated images and exports. |
-| **Create / Setup** | A. information (name, type incl. custom, language auto-detect + override, content paste / upload `.txt .md .docx` / import from a previous project), B. clients & brands with roles and project-specific instructions, C. Presented By, D. Presented To (independent, multi-company, reorder, logos, contacts, custom names, can be disabled), E. optional metadata, visual direction (saved style, custom direction, brand-color behaviour, three-example toggle, AI images toggle). |
+| **Create / Setup** | A. information (name, type incl. custom, language auto-detect + override, orientation horizontal 16:9 or vertical 9:16, content paste / upload `.txt .md .docx` / import from a previous project), B. clients & brands with roles and project-specific instructions, C. Presented By, D. Presented To (independent, multi-company, reorder, logos, contacts, custom names, can be disabled), E. optional metadata, visual direction (style picker with live previews, tone & voice, custom direction, brand-color behaviour, three-example toggle, AI images toggle). |
 | **Generate** | Mode A: three meaningfully different directions on representative slides, side by side, select one → full deck. Mode B: direct generation with the selected style (asks to confirm a default if none is selected). |
+| **Amends** | Chat-style revision requests, per slide (each slide has its own thread) or for the whole deck, from the editor side panel or the Amends tab. Requests are interpreted into design operations (size, color, alignment, position, background, images, layers, split, re-layout in another style, new image concept), applied, and can be undone. Wording is only changed when you dictate it in quotes, and the source block is updated as an authorized edit. Uses the Gemini text model when a key is set; a built-in English/Arabic rule interpreter otherwise. |
 | **Editor** | Thumbnails, canvas with drag/resize, text/image/shape properties, layers, add/duplicate/delete/reorder slides, undo/redo, autosave, preview, regenerate one / several / all slides, change style for all or selected slides, replace images, integrity status. |
 | **Images** | Review every Nano Banana Pro request: prompt, concept, status, regenerate (optionally with a new concept), replace with an upload, approve/reject. |
 | **Export** | Integrity check, render validation, PPTX / PDF / both, warnings, separate downloads, export history. |
@@ -63,7 +64,7 @@ npm run preview "<presentation name>" 6   # screenshots of a stored deck to test
 | **Visual Styles** | Reusable art directions with a structured spec (palette, color behaviour, composition, typography, image treatment, background, density, decorative elements, negative instructions) and live preview; duplicate built-ins; references & approved examples. |
 | **Assets Library** | All uploads across clients. |
 | **Generation History** | Generation jobs, exports, image generation with errors and attempts. |
-| **Settings & Integrations** | Integration status (Nano Banana Pro, Chromium, DB, storage, fonts), custom presentation types. |
+| **Settings & Integrations** | Integration status (Nano Banana Pro, Chromium, DB, storage, fonts), font library (upload .ttf/.otf/.woff/.woff2 brand fonts; used in styles, client profiles and the editor; embedded in PDF), custom presentation types. |
 
 ---
 
@@ -83,6 +84,12 @@ Decorative text (slide numbers, section numerals, "Presented by" labels) and met
 - A **Company** is any organisation (client brand, agency, partner, sponsor, recipient). Client brands carry colors, typography, assets and rules.
 - A **VisualStyle** is independent of any client. The style's `colorBehavior` (plus a per-presentation override) decides how the primary client's colors are applied: as accent, as dominant surface, or not at all (style-dominant / monochrome). Logos are always the client's own. Brands in one presentation are never merged.
 - Role-aware placement: primary client logo on content slides; partners/sponsors/collaborators in the cover footer; Presented By / Presented To rows on the cover and, when there are many, a dedicated participants slide.
+
+## Orientation, tone and fonts
+
+- **Orientation** is chosen per presentation: horizontal (1920×1080) or vertical (1080×1920). The layout engine adapts compositions (stacked covers, image bands, two-column cards) and exports use the matching page/slide size.
+- **Tone & voice** live on a visual style (default) and can be overridden per presentation (serious, professional, fun, playful, bold, calm, luxurious, energetic, friendly, technical, inspirational, minimal + a free-text voice). Tone adjusts visual knobs (weights, rounding, spacing, uppercase) and image prompts. It never touches wording.
+- **Fonts**: bundled Inter and Cairo, uploaded brand fonts (Settings → Fonts or “Upload a font…” inside any font selector) and common system fonts. Uploaded fonts render in the editor and are embedded in PDF; PPTX references the family name.
 
 ## Arabic / RTL
 

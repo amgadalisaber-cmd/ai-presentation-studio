@@ -7,12 +7,13 @@ import { api } from "@/lib/client";
 import { Alert, Spinner, StatusBadge, Toggle } from "@/components/ui";
 import { SlideView } from "@/components/slide/SlideView";
 import type { SlideModel } from "@/lib/types";
+import { StylePicker, type PickerStyle } from "@/components/styles/StylePicker";
 
-type Style = { id: string; name: string; isBuiltIn: boolean; description?: string | null };
+type Style = PickerStyle;
 type Job = { id: string; kind: string; status: string; error?: string | null; result?: { logs?: string[] } | null; createdAt: string };
 type Proposal = { id: string; order: number; selected: boolean; slides: SlideModel[]; style: { id: string; name: string; description?: string | null } };
 
-export function GeneratePanel({ presentation, styles, proposals, jobs }: { presentation: { id: string; styleId: string | null; threeStyleMode: boolean; aiImages: boolean; status: string; blocks: number; slides: number; customDirection?: string | null }; styles: Style[]; proposals: Proposal[]; jobs: Job[] }) {
+export function GeneratePanel({ presentation, styles, proposals, jobs }: { presentation: { id: string; orientation?: "landscape" | "portrait"; tone?: string; styleId: string | null; threeStyleMode: boolean; aiImages: boolean; status: string; blocks: number; slides: number; customDirection?: string | null }; styles: Style[]; proposals: Proposal[]; jobs: Job[] }) {
   const router = useRouter();
   const [three, setThree] = useState(presentation.threeStyleMode);
   const [styleId, setStyleId] = useState(presentation.styleId || "");
@@ -31,7 +32,7 @@ export function GeneratePanel({ presentation, styles, proposals, jobs }: { prese
     setBusy(true); setError(null); setAskDefault(false);
     try {
       await api(`/api/presentations/${presentation.id}`, { method: "PATCH", json: { aiImages, threeStyleMode: three, styleId: styleId || null } });
-      const j = await api<Job>(`/api/presentations/${presentation.id}/generate`, { method: "POST", json: three ? { mode: "three", styleIds: pick.length === 3 ? pick : undefined } : { mode: "direct", styleId: styleId || null, useDefaultStyle } });
+      const j = await api<Job>(`/api/presentations/${presentation.id}/generate`, { method: "POST", json: three ? { mode: "three", styleIds: pick.filter(Boolean).length === 3 ? pick.filter(Boolean) : undefined } : { mode: "direct", styleId: styleId || null, useDefaultStyle } });
       setJob(j); router.refresh();
     } catch (e) { const err = e as { status?: number; message: string }; if (err.status === 422) setAskDefault(true); else setError(err.message); } finally { setBusy(false); }
   };
@@ -45,14 +46,15 @@ export function GeneratePanel({ presentation, styles, proposals, jobs }: { prese
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-4">
             <Toggle on={three} onChange={setThree} label="Mode A — Generate three style examples" description="Representative slides in three distinct directions, compared side by side. Then pick one and generate the rest." />
-            {three && <div className="space-y-2"><p className="label">Three directions to compare</p>{[0, 1, 2].map((i) => <select key={i} className="select" value={pick[i] || ""} onChange={(e) => { const n = [...pick]; n[i] = e.target.value; setPick(n); }}><option value="">Auto-pick</option>{styles.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>)}<p className="text-xs text-ink-500">Leave as auto-pick to let the studio choose three meaningfully different directions.</p></div>}
-            {!three && <div className="space-y-2"><p className="label">Mode B — Generate directly with</p><select className="select" value={styleId} onChange={(e) => setStyleId(e.target.value)}><option value="">— choose a saved style —</option>{styles.map((s) => <option key={s.id} value={s.id}>{s.name}{s.isBuiltIn ? "" : " (custom)"}</option>)}</select>{styleId && <p className="text-xs text-ink-500">{styles.find((s) => s.id === styleId)?.description}</p>}{presentation.customDirection && <p className="text-xs text-ink-400">Custom direction: “{presentation.customDirection}”</p>}</div>}
+            {!three && <div className="space-y-2"><p className="label">Mode B — Generate directly with the selected style</p>{styleId && <p className="text-xs text-ink-500">{styles.find((s) => s.id === styleId)?.name}: {styles.find((s) => s.id === styleId)?.description}</p>}{presentation.customDirection && <p className="text-xs text-ink-400">Custom direction: “{presentation.customDirection}”</p>}</div>}
+            {three && <p className="text-xs text-ink-500">Pick exactly three directions below (numbered in order), or leave the selection empty to let the studio choose three meaningfully different ones.</p>}
           </div>
           <div className="space-y-4">
             <Toggle on={aiImages} onChange={setAiImages} label={`AI-generated images: ${aiImages ? "ON" : "OFF"}`} description={aiImages ? "Slides that benefit from imagery get a Nano Banana Pro image request for review. Text never goes inside images." : "No AI images. Approved uploaded assets of the primary client are used where a layout has an image slot."} />
             <div className="rounded-md border border-ink-700 bg-ink-800/50 p-3 text-xs text-ink-400 space-y-1"><p><strong className="text-ink-200">Content preservation:</strong> wording, numbers, punctuation and order are kept exactly; the engine only positions, sizes, splits across slides and styles your text. Every result is verified against the immutable source.</p>{presentation.slides > 0 && <p className="text-amber-200/90">Generating again replaces the current {presentation.slides} slides (and their generated images). Use the editor's per-slide regeneration to keep the rest.</p>}</div>
           </div>
         </div>
+        <div className="space-y-2"><p className="label">{three ? `Three directions to compare (${pick.filter(Boolean).length}/3)` : "Visual style"}</p><StylePicker styles={styles} value={three ? pick.filter(Boolean) : styleId ? [styleId] : []} onChange={(ids) => (three ? setPick(ids) : setStyleId(ids[0] || ""))} max={three ? 3 : 1} orientation={presentation.orientation || "landscape"} tone={presentation.tone} /></div>
         {askDefault && <Alert kind="warn"><div className="flex flex-wrap items-center gap-3"><span>No visual style is selected. Use <strong>Modern Minimal</strong> as the default direction?</span><button className="btn-primary btn-sm" onClick={() => start(true)}>Yes, use Modern Minimal</button><button className="btn-secondary btn-sm" onClick={() => setAskDefault(false)}>No, I'll choose</button></div></Alert>}
         {error && <Alert kind="error">{error}</Alert>}
         <div className="flex items-center gap-3">

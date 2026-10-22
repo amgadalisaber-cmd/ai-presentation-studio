@@ -7,6 +7,8 @@ import { api, upload } from "@/lib/client";
 import { Alert, Modal, Spinner, StatusBadge, Toggle } from "@/components/ui";
 import { SlideView } from "@/components/slide/SlideView";
 import { AssetPicker } from "./AssetPicker";
+import { AmendsPanel } from "@/components/presentation/AmendsPanel";
+import { FontSelect } from "@/components/FontSelect";
 import { CANVAS_H, CANVAS_W, type BlockModel, type ElementModel, type ImageProps, type ShapeProps, type SlideModel, type TextProps } from "@/lib/types";
 import { fontStack, backgroundStyle } from "@/lib/render/html";
 import type { IntegrityReport } from "@/lib/content/verify";
@@ -28,11 +30,13 @@ export function Editor({ presentationId }: { presentationId: string }) {
   const [styleModal, setStyleModal] = useState(false); const [styleChoice, setStyleChoice] = useState(""); const [styleScope, setStyleScope] = useState<"all" | "slides">("all");
   const [picker, setPicker] = useState<null | "replace" | "add" | "background">(null);
   const [preview, setPreview] = useState(false);
+  const [panel, setPanel] = useState<"properties" | "amends">("properties");
   const [scale, setScale] = useState(0.5); const canvasWrap = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => { const d = await api<Data>(`/api/presentations/${presentationId}/slides`); setData(d); setSlides(d.slides); setIntegrity(d.presentation.integrityReport); setDirty(false); setHistory([]); setFuture([]); setSelEl(null); setCur((c) => Math.min(c, Math.max(0, d.slides.length - 1))); }, [presentationId]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { const el = canvasWrap.current; if (!el) return; const ro = new ResizeObserver(() => setScale(Math.min((el.clientWidth - 48) / CANVAS_W, (el.clientHeight - 48) / CANVAS_H))); ro.observe(el); return () => ro.disconnect(); }, [data]);
+  const SW = slides[cur]?.w || CANVAS_W, SH = slides[cur]?.h || CANVAS_H;
+  useEffect(() => { const el = canvasWrap.current; if (!el) return; const ro = new ResizeObserver(() => setScale(Math.min((el.clientWidth - 48) / SW, (el.clientHeight - 48) / SH))); ro.observe(el); return () => ro.disconnect(); }, [data, SW, SH]);
 
   // job polling (regeneration / style change)
   useEffect(() => { if (!job || (job.status !== "queued" && job.status !== "running")) return; const t = setInterval(async () => { const j = await api<typeof job>(`/api/jobs/${job.id}`); setJob(j); if (j && (j.status === "completed" || j.status === "failed")) { clearInterval(t); if (j.status === "completed") { await load(); setMsg("Slides regenerated."); } else setError(j.error || "Regeneration failed"); } }, 1500); return () => clearInterval(t); }, [job?.id, job?.status, load]);
@@ -56,7 +60,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
   const updateProps = (patch: Record<string, unknown>) => updateEl((e) => ({ ...e, props: { ...(e.props as object), ...patch } as unknown as ElementModel["props"] }));
 
   // slide ops
-  const addSlide = () => { const s: SlideModel = { index: cur + 1, layoutKey: "blank", purpose: "content", background: { color: slide?.background.color || "#111111" }, styleId: data?.presentation.styleId, elements: [] }; const next = [...slides]; next.splice(cur + 1, 0, s); commit(next.map((x, i) => ({ ...x, index: i }))); setCur(cur + 1); };
+  const addSlide = () => { const s: SlideModel = { index: cur + 1, layoutKey: "blank", purpose: "content", w: SW, h: SH, background: { color: slide?.background.color || "#111111" }, styleId: data?.presentation.styleId, elements: [] }; const next = [...slides]; next.splice(cur + 1, 0, s); commit(next.map((x, i) => ({ ...x, index: i }))); setCur(cur + 1); };
   const duplicateSlide = () => { const s = clone(slide); delete s.id; s.elements = s.elements.map((e) => { const c = { ...e }; delete c.id; return c; }); const next = [...slides]; next.splice(cur + 1, 0, s); commit(next.map((x, i) => ({ ...x, index: i }))); setCur(cur + 1); };
   const deleteSlides = () => { const set = multi.size ? multi : new Set([cur]); if (!confirm(`Delete ${set.size} slide(s)? Text on them will be reported as missing by the integrity check.`)) return; const next = slides.filter((_, i) => !set.has(i)).map((x, i) => ({ ...x, index: i })); commit(next); setCur(Math.max(0, Math.min(cur, next.length - 1))); setMulti(new Set()); };
   const moveSlide = (from: number, to: number) => { if (to < 0 || to >= slides.length) return; const next = [...slides]; const [s] = next.splice(from, 1); next.splice(to, 0, s); commit(next.map((x, i) => ({ ...x, index: i }))); setCur(to); };
@@ -131,14 +135,16 @@ export function Editor({ presentationId }: { presentationId: string }) {
         </aside>
         {/* canvas */}
         <div ref={canvasWrap} className="relative flex flex-1 items-center justify-center overflow-hidden bg-ink-950 p-6" onMouseDown={() => setSelEl(null)}>
-          <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale }} className="relative shadow-2xl">
-            <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: CANVAS_W, height: CANVAS_H, position: "relative", overflow: "hidden", ...cssToObj(backgroundStyle(slide.background, (s) => s)) }}>
+          <div style={{ width: SW * scale, height: SH * scale }} className="relative shadow-2xl">
+            <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: SW, height: SH, position: "relative", overflow: "hidden", ...cssToObj(backgroundStyle(slide.background, (s) => s)) }}>
               {slide.elements.map((el, i) => <CanvasElement key={el.id || i} el={el} selected={selEl === i} onDown={(e, mode) => onDown(e, i, mode)} />)}
             </div>
           </div>
         </div>
         {/* properties */}
-        <aside className="w-80 flex-none overflow-auto border-l border-ink-700 bg-ink-900 p-3 space-y-4 text-sm">
+        <aside className="w-80 flex-none overflow-hidden border-l border-ink-700 bg-ink-900 flex flex-col text-sm">
+          <div className="flex border-b border-ink-700">{(["properties", "amends"] as const).map((t) => <button key={t} className={`flex-1 px-3 py-2 text-xs uppercase tracking-wider ${panel === t ? "text-ink-100 border-b-2 border-accent" : "text-ink-500"}`} onClick={() => setPanel(t)}>{t === "amends" ? "Amends chat" : "Properties"}</button>)}</div>
+          {panel === "amends" ? <AmendsPanel compact disabled={!!running} presentationId={presentationId} slideId={slide.id || null} slideLabel={`slide ${cur + 1}`} onApplied={async () => { await load(); }} /> : <div className="flex-1 overflow-auto p-3 space-y-4">
           <div className="flex gap-1"><button className="btn-secondary btn-sm" onClick={addText}><Type size={13} /> Text</button><button className="btn-secondary btn-sm" onClick={addShape}><Square size={13} /> Shape</button><button className="btn-secondary btn-sm" onClick={() => setPicker("add")}><ImageIcon size={13} /> Image</button></div>
           {!sel ? (
             <div className="space-y-3">
@@ -173,6 +179,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
               </div>}
             </div>
           )}
+          </div>}
         </aside>
       </div>
 
@@ -211,7 +218,7 @@ function TextProperties({ p, onChange }: { p: TextProps; onChange: (patch: Recor
     <div className="space-y-2">
       <label className="label">Text</label><textarea className="textarea min-h-[100px]" dir={p.dir} lang={p.lang === "ar" ? "ar" : undefined} value={p.text} onChange={(e) => onChange({ text: e.target.value })} />
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs"><span className="text-ink-500">Font</span><select className="select" value={p.fontFamily} onChange={(e) => onChange({ fontFamily: e.target.value })}>{["Inter", "Cairo", "Georgia", "Arial", "Helvetica", "Times New Roman"].includes(p.fontFamily) ? null : <option value={p.fontFamily}>{p.fontFamily}</option>}<option>Inter</option><option>Cairo</option><option>Georgia</option><option>Arial</option><option>Helvetica</option><option>Times New Roman</option></select></label>
+        <label className="text-xs"><span className="text-ink-500">Font</span><FontSelect value={p.fontFamily} onChange={(f) => onChange({ fontFamily: f })} arabic={p.lang === "ar"} /></label>
         <label className="text-xs"><span className="text-ink-500">Size (px)</span><input type="number" className="input" value={p.fontSize} onChange={(e) => onChange({ fontSize: Number(e.target.value) })} /></label>
         <label className="text-xs"><span className="text-ink-500">Weight</span><select className="select" value={p.fontWeight} onChange={(e) => onChange({ fontWeight: Number(e.target.value) })}>{[300, 400, 500, 600, 700, 800, 900].map((w) => <option key={w} value={w}>{w}</option>)}</select></label>
         <label className="text-xs"><span className="text-ink-500">Line height</span><input type="number" step={0.05} className="input" value={p.lineHeight} onChange={(e) => onChange({ lineHeight: Number(e.target.value) })} /></label>
@@ -230,7 +237,7 @@ function TextProperties({ p, onChange }: { p: TextProps; onChange: (patch: Recor
 function Preview({ slides, start, onClose }: { slides: SlideModel[]; start: number; onClose: () => void }) {
   const [i, setI] = useState(start);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === "ArrowRight" || e.key === " ") setI((x) => Math.min(slides.length - 1, x + 1)); if (e.key === "ArrowLeft") setI((x) => Math.max(0, x - 1)); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [slides.length]);
-  const w = typeof window !== "undefined" ? Math.min(window.innerWidth, (window.innerHeight * 16) / 9) : 1280;
+  const ar = (slides[i].w || CANVAS_W) / (slides[i].h || CANVAS_H); const w = typeof window !== "undefined" ? Math.min(window.innerWidth, window.innerHeight * ar) : 1280;
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black" onClick={() => setI((x) => Math.min(slides.length - 1, x + 1))}><SlideView slide={slides[i]} width={w} /><button className="absolute right-4 top-4 btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close (Esc)</button><span className="absolute bottom-4 right-4 text-xs text-ink-400">{i + 1} / {slides.length}</span></div>;
 }
 

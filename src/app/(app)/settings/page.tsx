@@ -5,6 +5,7 @@ import { availableFonts } from "@/lib/render/fonts";
 import { chromiumPath } from "@/lib/export/browser";
 import { STORAGE_DIR } from "@/lib/storage";
 import { SettingsForm } from "@/components/SettingsForm";
+import { FontManager } from "@/components/FontSelect";
 export default async function SettingsPage() {
   const user = await requireUser();
   const setting = await prisma.userSetting.findUnique({ where: { userId_key: { userId: user.id, key: "customTypes" } } });
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
         {row("File storage", true, `Local disk at ${STORAGE_DIR} (uploads, generated images, exports). Swap for object storage by replacing src/lib/storage.ts.`)}
         {row("Bundled fonts", fonts.every((f) => f.present), fonts.map((f) => `${f.family} ${f.weight}${f.present ? "" : " (missing)"}`).join(", ") + " — add more .ttf files to public/fonts and src/lib/render/fonts.ts")}
       </div></section>
+      <section className="space-y-2"><h2 className="section-title">Fonts</h2><FontManager /></section>
       <section className="space-y-2"><h2 className="section-title">Presentation types</h2><p className="muted text-sm">Add custom presentation types available in the type dropdown.</p><SettingsForm customTypes={(setting?.value as string[]) || []} /></section>
       <section className="space-y-2"><h2 className="section-title">Account</h2><div className="card p-4 text-sm">{user.name} · {user.email}</div></section>
     </div>

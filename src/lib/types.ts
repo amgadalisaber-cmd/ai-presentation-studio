@@ -1,5 +1,8 @@
 export const CANVAS_W = 1920;
 export const CANVAS_H = 1080;
+export type Orientation = "landscape" | "portrait";
+export function canvasSize(o?: Orientation | string | null) { return o === "portrait" ? { w: CANVAS_H, h: CANVAS_W } : { w: CANVAS_W, h: CANVAS_H }; }
+export const TONES = ["serious", "professional", "fun", "playful", "bold", "calm", "luxurious", "energetic", "friendly", "technical", "inspirational", "minimal"] as const;
 
 export type Dir = "ltr" | "rtl";
 export type Lang = "ar" | "en" | "mixed" | "neutral";
@@ -47,6 +50,8 @@ export interface SlideBackground { color?: string; gradient?: string; imageSrc?:
 export interface SlideModel {
   id?: string;
   index: number;
+  w?: number;
+  h?: number;
   layoutKey: string;
   purpose: "cover" | "section" | "content" | "list" | "quote" | "participants" | "closing" | "image" | "number";
   background: SlideBackground;

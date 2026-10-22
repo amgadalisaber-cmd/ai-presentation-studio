@@ -25,7 +25,7 @@ export const PATCH = handler<{ id: string }>(async (req, { id }, userId) => {
   const body = await parse(req, presentationSchema.partial());
   if (body.styleId) await ownStyle(userId, body.styleId);
   const data: Prisma.PresentationUpdateInput = {};
-  for (const k of ["name", "type", "customType", "language", "contentSource", "customDirection", "threeStyleMode", "aiImages", "presentedByEnabled", "presentedToEnabled", "projectNotes"] as const) if (body[k] !== undefined) (data as Record<string, unknown>)[k] = body[k];
+  for (const k of ["name", "type", "customType", "language", "orientation", "contentSource", "customDirection", "threeStyleMode", "aiImages", "presentedByEnabled", "presentedToEnabled", "projectNotes"] as const) if (body[k] !== undefined) (data as Record<string, unknown>)[k] = body[k];
   if (body.styleId !== undefined) data.style = body.styleId ? { connect: { id: body.styleId } } : { disconnect: true };
   if (body.metadata !== undefined) data.metadata = body.metadata as Prisma.InputJsonValue;
   await prisma.presentation.update({ where: { id }, data });

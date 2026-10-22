@@ -7,8 +7,10 @@ import { Alert, Field, Spinner } from "@/components/ui";
 import { SlideView } from "@/components/slide/SlideView";
 import type { StyleSpec } from "@/lib/styles/spec";
 import { previewSlides } from "@/lib/styles/preview";
+import { FontSelect } from "@/components/FontSelect";
+import { TONES } from "@/lib/types";
 
-export interface StyleValue { name: string; description: string; spec: StyleSpec; composition: string; layoutRules: string; typography: string; imageTreatment: string; backgroundTreatment: string; colorBehavior: string; lighting: string; density: string; decorative: string; negative: string }
+export interface StyleValue { name: string; description: string; tone: string; voice: string; spec: StyleSpec; composition: string; layoutRules: string; typography: string; imageTreatment: string; backgroundTreatment: string; colorBehavior: string; lighting: string; density: string; decorative: string; negative: string }
 type Ref = { id: string; url?: string | null; note?: string | null; asset?: { id: string; name: string; mimeType: string } | null };
 
 export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial: StyleValue; id?: string; isBuiltIn?: boolean; references?: Ref[] }) {
@@ -25,14 +27,16 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
   const del = async () => { if (!confirm(`Delete style "${v.name}"?`)) return; await api(`/api/styles/${id}`, { method: "DELETE" }); router.push("/styles"); router.refresh(); };
   const addRefFile = async (file: File) => { setBusy(true); try { const a = await upload<{ id: string }>("/api/assets", { file, kind: "style_reference", name: file.name }); await api(`/api/styles/${id}/references`, { method: "POST", json: { assetId: a.id, note: refNote } }); setRefNote(""); router.refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } };
   const addRefUrl = async () => { if (!refUrl.trim()) return; await api(`/api/styles/${id}/references`, { method: "POST", json: { url: refUrl.trim(), note: refNote } }); setRefUrl(""); setRefNote(""); router.refresh(); };
-  const preview = previewSlides(v.spec, v.name);
+  const preview = previewSlides(v.spec, v.name, "landscape", v.tone || undefined);
   const P = v.spec.palette; const C = v.spec.composition; const D = v.spec.decorative; const F = v.spec.fonts; const S = v.spec.scale; const I = v.spec.imageTreatment;
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
       <div className="space-y-5">
         {error && <Alert kind="error">{error}</Alert>}
         {readOnly && <Alert kind="info">Built-in style (read-only). <button className="underline" onClick={duplicate}>Duplicate</button> it to customise.</Alert>}
-        <div className="grid gap-4 md:grid-cols-2"><Field label="Style name *"><input className="input" disabled={readOnly} value={v.name} onChange={(e) => set("name", e.target.value)} /></Field><Field label="Description"><input className="input" disabled={readOnly} value={v.description} onChange={(e) => set("description", e.target.value)} /></Field></div>
+        <div className="grid gap-4 md:grid-cols-2"><Field label="Style name *"><input className="input" disabled={readOnly} value={v.name} onChange={(e) => set("name", e.target.value)} /></Field><Field label="Description"><input className="input" disabled={readOnly} value={v.description} onChange={(e) => set("description", e.target.value)} /></Field>
+          <Field label="Tone" hint="Default mood of this direction; a presentation can override it."><select className="select" disabled={readOnly} value={v.tone} onChange={(e) => setV((x) => ({ ...x, tone: e.target.value, spec: { ...x.spec, tone: e.target.value || undefined } }))}><option value="">— none —</option>{TONES.map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></Field>
+          <Field label="Voice" hint="How the direction should feel, in words (used in image prompts)."><input className="input" disabled={readOnly} value={v.voice} onChange={(e) => setV((x) => ({ ...x, voice: e.target.value, spec: { ...x.spec, voice: e.target.value || undefined } }))} placeholder="e.g. serious, understated, premium" /></Field></div>
         <fieldset disabled={readOnly} className="space-y-5">
           <section className="card-pad space-y-3"><h3 className="section-title">Palette & color behaviour</h3>
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{(["background", "surface", "text", "muted", "accent", "accent2"] as const).map((k) => <label key={k} className="text-xs"><span className="text-ink-500">{k}</span><div className="flex gap-1"><input type="color" value={P[k]} onChange={(e) => spec("palette", { [k]: e.target.value })} /><input className="input px-1.5" value={P[k]} onChange={(e) => spec("palette", { [k]: e.target.value })} /></div></label>)}</div>
@@ -55,8 +59,8 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
           </section>
           <section className="card-pad space-y-3"><h3 className="section-title">Typography treatment</h3>
             <div className="grid gap-3 md:grid-cols-4">
-              <Field label="Heading font"><input className="input" value={F.heading} onChange={(e) => spec("fonts", { heading: e.target.value })} /></Field><Field label="Body font"><input className="input" value={F.body} onChange={(e) => spec("fonts", { body: e.target.value })} /></Field>
-              <Field label="Arabic heading font"><input className="input" value={F.arabicHeading} onChange={(e) => spec("fonts", { arabicHeading: e.target.value })} /></Field><Field label="Arabic body font"><input className="input" value={F.arabicBody} onChange={(e) => spec("fonts", { arabicBody: e.target.value })} /></Field>
+              <Field label="Heading font"><FontSelect disabled={readOnly} value={F.heading} onChange={(f) => spec("fonts", { heading: f })} /></Field><Field label="Body font"><FontSelect disabled={readOnly} value={F.body} onChange={(f) => spec("fonts", { body: f })} /></Field>
+              <Field label="Arabic heading font"><FontSelect arabic disabled={readOnly} value={F.arabicHeading} onChange={(f) => spec("fonts", { arabicHeading: f })} /></Field><Field label="Arabic body font"><FontSelect arabic disabled={readOnly} value={F.arabicBody} onChange={(f) => spec("fonts", { arabicBody: f })} /></Field>
               <Field label="Heading weight"><select className="select" value={F.headingWeight} onChange={(e) => spec("fonts", { headingWeight: Number(e.target.value) })}>{[300, 400, 500, 600, 700, 800, 900].map((w) => <option key={w} value={w}>{w}</option>)}</select></Field>
               <Field label="Heading case"><select className="select" value={F.headingTransform} onChange={(e) => spec("fonts", { headingTransform: e.target.value as "uppercase" | "none" })}><option value="none">as written</option><option value="uppercase">uppercase (visual)</option></select></Field>
               <Field label="Heading tracking (px)"><input type="number" className="input" value={F.headingLetterSpacing} onChange={(e) => spec("fonts", { headingLetterSpacing: Number(e.target.value) })} /></Field>

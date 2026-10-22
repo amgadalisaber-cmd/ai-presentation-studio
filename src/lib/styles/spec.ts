@@ -15,15 +15,17 @@ export interface StyleSpec {
   imageTreatment: { style: string; promptPrefix: string; negativePrompt: string; cssFilter?: string; aspect: "16:9" | "4:3" | "1:1" | "3:4" };
   lighting?: string;
   negative: string[];
+  tone?: string;   // see TONES in types.ts
+  voice?: string;  // free-text voice & personality description
 }
 
-export interface BuiltInStyle { key: string; name: string; description: string; spec: StyleSpec; fields: { composition: string; layoutRules: string; typography: string; imageTreatment: string; backgroundTreatment: string; colorBehavior: string; lighting: string; density: string; decorative: string; negative: string } }
+export interface BuiltInStyle { key: string; tone: string; name: string; description: string; spec: StyleSpec; fields: { composition: string; layoutRules: string; typography: string; imageTreatment: string; backgroundTreatment: string; colorBehavior: string; lighting: string; density: string; decorative: string; negative: string } }
 
 const AR_H = "Cairo", AR_B = "Cairo";
 
 export const BUILT_IN_STYLES: BuiltInStyle[] = [
   {
-    key: "cinematic", name: "Cinematic", description: "Dark, atmospheric, widescreen compositions with full-bleed imagery, restrained type and dramatic negative space.",
+    key: "cinematic", tone: "serious", name: "Cinematic", description: "Dark, atmospheric, widescreen compositions with full-bleed imagery, restrained type and dramatic negative space.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 300, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -1 },
       palette: { background: "#07080c", surface: "#12141c", text: "#f4f2ec", muted: "#9a9cab", accent: "#d8b56a", accent2: "#3b6ea5" },
@@ -39,7 +41,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Widescreen full-bleed imagery with text anchored to the lower third or left edge. Generous negative space.", layoutRules: "One idea per slide. Headlines bottom-left. Body in a single narrow column over a dark gradient.", typography: "Light-weight sans headlines at large scale, tight tracking. Arabic in Cairo with matching hierarchy.", imageTreatment: "Cinematic photography, anamorphic, moody light, teal/amber grade, heavy darkening overlay for legibility.", backgroundTreatment: "Near-black with image or subtle vertical gradient.", colorBehavior: "Brand color appears only as an accent (rules, numbers, highlights).", lighting: "Low-key, directional, volumetric haze.", density: "Airy — few words per slide; long content splits across slides.", decorative: "Thin accent rules, section numbers, slide counters.", negative: "No bright backgrounds, no clip-art, no dense bullet walls." },
   },
   {
-    key: "modern-minimal", name: "Modern Minimal", description: "White space, precise grid, black type and a single accent. Imagery is inset and quiet.",
+    key: "modern-minimal", tone: "minimal", name: "Modern Minimal", description: "White space, precise grid, black type and a single accent. Imagery is inset and quiet.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 600, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -2 },
       palette: { background: "#ffffff", surface: "#f4f4f2", text: "#111111", muted: "#6b6b6b", accent: "#1a1a1a", accent2: "#d9d9d6" },
@@ -55,7 +57,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Strict 12-column grid, left-aligned, large margins.", layoutRules: "Heading top-left, body in two columns, images inset on the right third.", typography: "Semibold sans headlines, regular body, tight tracking.", imageTreatment: "Quiet, natural-light photography, inset with no borders.", backgroundTreatment: "Pure white.", colorBehavior: "Black type; brand primary used as the single accent.", lighting: "Soft, natural.", density: "Balanced.", decorative: "Hairline rules and slide numbers only.", negative: "No gradients, shadows or icons." },
   },
   {
-    key: "bold-editorial", name: "Bold Editorial", description: "Oversized headlines, high-contrast type pairing, asymmetric layouts and large numerals like a magazine feature.",
+    key: "bold-editorial", tone: "bold", name: "Bold Editorial", description: "Oversized headlines, high-contrast type pairing, asymmetric layouts and large numerals like a magazine feature.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 900, bodyWeight: 400, headingTransform: "uppercase", headingLetterSpacing: -3 },
       palette: { background: "#f3efe6", surface: "#e9e3d6", text: "#141210", muted: "#5d574c", accent: "#d6301d", accent2: "#141210" },
@@ -71,7 +73,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Asymmetric, poster-like. Huge headlines bleed to edges; body text sits in narrow columns.", layoutRules: "Heading on the left half, body right; large index numerals for sections.", typography: "Black-weight uppercase sans headlines; small regular body.", imageTreatment: "High-contrast editorial photography, tight crops, left half of the slide.", backgroundTreatment: "Warm paper tone.", colorBehavior: "Style palette leads; brand colors appear in logos and small accents only.", lighting: "Hard, graphic.", density: "Balanced.", decorative: "Thick black rules, oversized section numbers.", negative: "No centered layouts, no pastels, no timid type." },
   },
   {
-    key: "corporate-premium", name: "Corporate Premium", description: "Polished navy-and-gold corporate language with structured grids, cards and restrained imagery.",
+    key: "corporate-premium", tone: "professional", name: "Corporate Premium", description: "Polished navy-and-gold corporate language with structured grids, cards and restrained imagery.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 600, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -1 },
       palette: { background: "#0e1b2e", surface: "#16263d", text: "#ffffff", muted: "#aab6c8", accent: "#c9a85c", accent2: "#2f5f9e" },
@@ -87,7 +89,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Structured grid with card modules and a split cover.", layoutRules: "Heading top; content in cards or two columns; imagery on the right half.", typography: "Semibold sans headlines; comfortable body size.", imageTreatment: "Premium corporate photography, cool tones, shallow depth of field.", backgroundTreatment: "Deep navy gradient; brand primary may replace navy.", colorBehavior: "Brand primary becomes the dominant surface color; gold accent kept.", lighting: "Clean, bright highlights.", density: "Balanced.", decorative: "Card frames, hairline rules, slide numbers.", negative: "No playful illustration, no handwriting fonts." },
   },
   {
-    key: "swiss", name: "Swiss International", description: "Grid-driven typographic layouts, flush-left ragged-right type, red accent, no ornament.",
+    key: "swiss", tone: "technical", name: "Swiss International", description: "Grid-driven typographic layouts, flush-left ragged-right type, red accent, no ornament.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 700, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -2 },
       palette: { background: "#ffffff", surface: "#f0f0f0", text: "#000000", muted: "#555555", accent: "#e30613", accent2: "#000000" },
@@ -103,7 +105,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Modular grid with visible structure; type aligns to columns.", layoutRules: "Heading in a left sidebar column; body spans the remaining grid columns.", typography: "Bold flush-left sans headlines, ragged right.", imageTreatment: "Black-and-white documentary photographs in a top band.", backgroundTreatment: "White with faint grid.", colorBehavior: "Black, white and red. Brand colors only in logos.", lighting: "Neutral.", density: "Dense — more content per slide.", decorative: "Red blocks, grid lines, numbering.", negative: "No centered text, gradients or decorative imagery." },
   },
   {
-    key: "luxury", name: "Luxury", description: "Black and champagne, serif headlines, centered compositions, thin frames and abundant whitespace.",
+    key: "luxury", tone: "luxurious", name: "Luxury", description: "Black and champagne, serif headlines, centered compositions, thin frames and abundant whitespace.",
     spec: {
       fonts: { heading: "Georgia", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 400, bodyWeight: 300, headingTransform: "none", headingLetterSpacing: 2 },
       palette: { background: "#0b0a09", surface: "#171513", text: "#efe6d6", muted: "#9c927f", accent: "#cdb27a", accent2: "#6e5c3a" },
@@ -119,7 +121,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Centered, symmetrical, framed.", layoutRules: "Centered heading, single narrow column, thin frame around the slide.", typography: "Serif headlines with wide tracking; light body.", imageTreatment: "Dark, refined product-style imagery, square inset.", backgroundTreatment: "Deep black.", colorBehavior: "Monochrome black/champagne; brand colors suppressed except logos.", lighting: "Soft rim light.", density: "Airy.", decorative: "Thin frames, centered rules, roman-style section numbers.", negative: "No saturated color, no icon bullets." },
   },
   {
-    key: "futuristic", name: "Futuristic", description: "Deep space gradients, neon accent glow, geometric framing and technical captions.",
+    key: "futuristic", tone: "energetic", name: "Futuristic", description: "Deep space gradients, neon accent glow, geometric framing and technical captions.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 700, bodyWeight: 400, headingTransform: "uppercase", headingLetterSpacing: 4 },
       palette: { background: "#05070f", surface: "#0d1326", text: "#e9f1ff", muted: "#8ea0c4", accent: "#38e1ff", accent2: "#8b5cf6" },
@@ -135,7 +137,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Centered hero with geometric frames; grid cards for content.", layoutRules: "Centered uppercase headings, content in glowing cards.", typography: "Bold uppercase sans with wide tracking; technical captions.", imageTreatment: "Neon-lit 3D renders, full-bleed behind dark overlay.", backgroundTreatment: "Deep-space radial gradient with faint grid.", colorBehavior: "Style neon palette leads; brand colors in logos.", lighting: "Neon glow, volumetric.", density: "Balanced.", decorative: "Thin frames, corner marks, grid, numbering.", negative: "No warm paper tones, no serifs." },
   },
   {
-    key: "technology", name: "Technology-focused", description: "Clean product-tech look: light surfaces, blue accent, modular cards, diagrams-friendly spacing.",
+    key: "technology", tone: "professional", name: "Technology-focused", description: "Clean product-tech look: light surfaces, blue accent, modular cards, diagrams-friendly spacing.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 700, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -1 },
       palette: { background: "#f7f9fc", surface: "#ffffff", text: "#0f172a", muted: "#64748b", accent: "#2563eb", accent2: "#0ea5e9" },
@@ -151,7 +153,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Modular card grid, rounded surfaces, split cover.", layoutRules: "Heading top-left; content as cards; imagery right half.", typography: "Bold sans headlines; neutral body.", imageTreatment: "Bright studio tech renders, blue/white.", backgroundTreatment: "Very light grey.", colorBehavior: "Brand primary as accent on cards and highlights.", lighting: "Bright studio.", density: "Balanced.", decorative: "Rounded card frames, slide numbers.", negative: "No dark backgrounds, no ornament." },
   },
   {
-    key: "magazine", name: "Magazine Editorial", description: "Multi-column text, pull-quotes, captions and photo spreads reminiscent of a printed feature.",
+    key: "magazine", tone: "friendly", name: "Magazine Editorial", description: "Multi-column text, pull-quotes, captions and photo spreads reminiscent of a printed feature.",
     spec: {
       fonts: { heading: "Georgia", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 700, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -1 },
       palette: { background: "#fbfaf7", surface: "#f1efe9", text: "#1b1a18", muted: "#6c6861", accent: "#1f4e79", accent2: "#c2410c" },
@@ -167,7 +169,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Spread-like layouts with columns and pull quotes.", layoutRules: "Serif headline top; body in two or three columns; photo on left half.", typography: "Serif headlines, sans body, small captions.", imageTreatment: "Candid editorial photography, printed-magazine color.", backgroundTreatment: "Off-white paper.", colorBehavior: "Editorial navy/orange; brand colors only in logos.", lighting: "Natural.", density: "Dense.", decorative: "Column rules, folios.", negative: "No neon, no full-slide gradients." },
   },
   {
-    key: "data-driven", name: "Data-driven", description: "Analytical, number-forward layouts with big figures, labels and structured rows.",
+    key: "data-driven", tone: "technical", name: "Data-driven", description: "Analytical, number-forward layouts with big figures, labels and structured rows.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 600, bodyWeight: 400, headingTransform: "none", headingLetterSpacing: -1 },
       palette: { background: "#101418", surface: "#1a2027", text: "#f1f5f9", muted: "#94a3b8", accent: "#22c55e", accent2: "#f59e0b" },
@@ -183,7 +185,7 @@ export const BUILT_IN_STYLES: BuiltInStyle[] = [
     fields: { composition: "Number-forward rows and sidebars.", layoutRules: "Heading top; rows of content with large index numbers; minimal imagery.", typography: "Semibold sans; figures emphasized.", imageTreatment: "Abstract data art only when requested.", backgroundTreatment: "Charcoal with faint grid.", colorBehavior: "Brand primary as accent color for highlights.", lighting: "Flat.", density: "Dense.", decorative: "Grid lines, index numerals, rules.", negative: "No decorative photos, no script fonts." },
   },
   {
-    key: "experimental", name: "Experimental", description: "Unexpected scale contrasts, rotated labels, off-grid placement and vivid color blocking.",
+    key: "experimental", tone: "playful", name: "Experimental", description: "Unexpected scale contrasts, rotated labels, off-grid placement and vivid color blocking.",
     spec: {
       fonts: { heading: "Inter", body: "Inter", arabicHeading: AR_H, arabicBody: AR_B, headingWeight: 800, bodyWeight: 400, headingTransform: "uppercase", headingLetterSpacing: -4 },
       palette: { background: "#1b1a2e", surface: "#2a2847", text: "#fdfcf7", muted: "#b7b3d6", accent: "#ff5c7a", accent2: "#ffd166" },
@@ -218,5 +220,7 @@ export function normalizeSpec(input: unknown): StyleSpec {
     imageTreatment: { ...d.imageTreatment, ...(src.imageTreatment || {}) },
     lighting: src.lighting ?? d.lighting,
     negative: Array.isArray(src.negative) ? src.negative : d.negative,
+    tone: src.tone || undefined,
+    voice: src.voice || undefined,
   };
 }

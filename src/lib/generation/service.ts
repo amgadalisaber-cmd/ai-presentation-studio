@@ -48,7 +48,7 @@ export async function buildContext(presentationId: string, styleId: string | nul
   };
   const ctx: GenContext = {
     presentationId, name: p.name, type: p.type, typeLabel: p.type === "Custom" && p.customType ? p.customType : p.type,
-    language: p.language, blocks, spec, styleId: style?.id || null, participants,
+    language: p.language, orientation: p.orientation as "landscape" | "portrait", blocks, spec, styleId: style?.id || null, participants,
     presentedBy: await entries("presented_by"), presentedTo: await entries("presented_to"),
     presentedByEnabled: p.presentedByEnabled, presentedToEnabled: p.presentedToEnabled,
     metadata: (p.metadata || {}) as PresentationMeta, aiImages: p.aiImages, customDirection: p.customDirection, plan: null,
@@ -63,13 +63,13 @@ export async function buildContext(presentationId: string, styleId: string | nul
 export async function loadSlides(presentationId: string): Promise<SlideModel[]> {
   const rows = await prisma.slide.findMany({ where: { presentationId }, orderBy: { index: "asc" }, include: { elements: { orderBy: { z: "asc" } } } });
   return rows.map((s) => ({
-    id: s.id, index: s.index, layoutKey: s.layoutKey, purpose: s.purpose as SlideModel["purpose"], background: (s.background || {}) as SlideModel["background"], styleId: s.styleId, notes: s.notes || undefined,
+    id: s.id, index: s.index, w: s.width, h: s.height, layoutKey: s.layoutKey, purpose: s.purpose as SlideModel["purpose"], background: (s.background || {}) as SlideModel["background"], styleId: s.styleId, notes: s.notes || undefined,
     elements: s.elements.map((e) => ({ id: e.id, type: e.type as ElementModel["type"], origin: e.origin as ElementModel["origin"], x: e.x, y: e.y, w: e.w, h: e.h, z: e.z, rotation: e.rotation, props: e.props as unknown as ElementModel["props"], blockId: e.blockId, fragmentIndex: e.fragmentIndex, fragmentCount: e.fragmentCount, assetId: e.assetId, generatedImageId: e.generatedImageId })),
   }));
 }
 
 async function insertSlide(tx: Prisma.TransactionClient, presentationId: string, s: SlideModel, index: number) {
-  const slide = await tx.slide.create({ data: { presentationId, index, layoutKey: s.layoutKey, purpose: s.purpose, background: s.background as Prisma.InputJsonValue, styleId: s.styleId || null, notes: s.notes || null } });
+  const slide = await tx.slide.create({ data: { presentationId, index, width: s.w || 1920, height: s.h || 1080, layoutKey: s.layoutKey, purpose: s.purpose, background: s.background as Prisma.InputJsonValue, styleId: s.styleId || null, notes: s.notes || null } });
   for (const e of s.elements) {
     await tx.slideElement.create({ data: { slideId: slide.id, type: e.type, origin: e.origin, x: e.x, y: e.y, w: e.w, h: e.h, z: e.z, rotation: e.rotation || 0, props: e.props as unknown as Prisma.InputJsonValue, blockId: e.blockId || null, fragmentIndex: e.fragmentIndex ?? null, fragmentCount: e.fragmentCount ?? null, assetId: e.assetId || null, generatedImageId: e.generatedImageId || null } });
   }
@@ -83,6 +83,31 @@ export async function replaceAllSlides(presentationId: string, slides: SlideMode
     const ids: string[] = [];
     for (let i = 0; i < slides.length; i++) ids.push(await insertSlide(tx, presentationId, slides[i], i));
     return ids;
+  }, { timeout: 120000 });
+}
+
+/** Saves editor/amend state: slide order, backgrounds, elements (positions, props, additions, deletions). Keeps ids stable. */
+export async function saveSlides(presentationId: string, slides: SlideModel[]) {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.slide.findMany({ where: { presentationId }, select: { id: true } });
+    const keep = new Set(slides.map((s) => s.id).filter(Boolean) as string[]);
+    await tx.slide.deleteMany({ where: { presentationId, id: { notIn: [...keep] } } });
+    for (const s of existing) if (keep.has(s.id)) await tx.slide.update({ where: { id: s.id }, data: { index: { increment: 10000 } } });
+    for (let i = 0; i < slides.length; i++) {
+      const s = slides[i];
+      let slideId = s.id || null;
+      const data = { index: i, width: s.w || 1920, height: s.h || 1080, layoutKey: s.layoutKey, purpose: s.purpose, background: s.background as Prisma.InputJsonValue, styleId: s.styleId || null, notes: s.notes || null };
+      if (slideId && keep.has(slideId) && existing.some((e) => e.id === slideId)) await tx.slide.update({ where: { id: slideId }, data });
+      else { const created = await tx.slide.create({ data: { presentationId, ...data } }); slideId = created.id; s.id = slideId; }
+      const existingEls = await tx.slideElement.findMany({ where: { slideId }, select: { id: true } });
+      const keepEls = new Set(s.elements.map((e) => e.id).filter(Boolean) as string[]);
+      await tx.slideElement.deleteMany({ where: { slideId, id: { notIn: [...keepEls] } } });
+      for (const e of s.elements) {
+        const base = { type: e.type, origin: e.origin || "user", x: e.x, y: e.y, w: e.w, h: e.h, z: e.z, rotation: e.rotation || 0, props: e.props as unknown as Prisma.InputJsonValue, blockId: e.blockId || null, fragmentIndex: e.fragmentIndex ?? null, fragmentCount: e.fragmentCount ?? null, assetId: e.assetId || null, generatedImageId: e.generatedImageId || null };
+        if (e.id && existingEls.some((x) => x.id === e.id)) await tx.slideElement.update({ where: { id: e.id }, data: base });
+        else { const c = await tx.slideElement.create({ data: { slideId, ...base } }); e.id = c.id; }
+      }
+    }
   }, { timeout: 120000 });
 }
 

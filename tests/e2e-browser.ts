@@ -37,6 +37,7 @@ async function main() {
   page.on("pageerror", (e) => console.log("PAGE ERROR:", e.message));
   const step = (s: string) => console.log(`• ${s}`);
 
+  try {
   step("setup"); await page.goto(`${BASE}/`); await page.waitForURL(/\/setup/);
   await page.fill('input.input >> nth=0', "Amgad"); await page.fill('input[type="email"]', "designer@halflens.studio"); await page.fill('input[type="password"]', "studio-pass-123");
   await page.click("button:has-text('Create workspace')"); await page.waitForURL(`${BASE}/`); await shot("dashboard-empty");
@@ -84,11 +85,51 @@ async function main() {
   await page.click("button:has-text('Text')"); await page.fill("textarea.textarea", "Added by designer"); await page.keyboard.press("Control+s"); await page.waitForSelector("text=Saved", { timeout: 15000 });
   await shot("editor-edited");
   // regenerate slide 3
-  await page.locator("aside >> nth=0 >> .slide-frame").nth(2).click(); await page.click("button:has-text('Regenerate slide')"); await page.waitForSelector("text=Slides regenerated.", { timeout: 60000 });
+  await page.locator("aside >> nth=0 >> .slide-frame").nth(2).click(); await page.click("button:has-text('Regenerate slide')"); await page.waitForSelector("text=Regenerating…", { timeout: 15000 }); await page.waitForSelector("text=Regenerating…", { state: "detached", timeout: 60000 }); await page.waitForSelector("text=Slides regenerated.", { timeout: 30000 });
   // change style for slide 4 only
-  await page.locator("aside >> nth=0 >> .slide-frame").nth(3).click(); await page.click("button:has-text('Change style')"); await page.selectOption(".card select.select", { label: "Luxury" }); await page.click("button[role='switch']"); await page.click("button:has-text('Apply style')"); await page.waitForSelector("text=Slides regenerated.", { timeout: 60000 }); await shot("editor-restyled-slide");
+  await page.locator("aside >> nth=0 >> .slide-frame").nth(3).click(); await page.click("button:has-text('Change style')"); await page.selectOption(".card select.select", { label: "Luxury" }); await page.click("button[role='switch']"); await page.click("button:has-text('Apply style')"); await page.waitForSelector("text=Regenerating…", { timeout: 15000 }); await page.waitForSelector("text=Regenerating…", { state: "detached", timeout: 60000 }); await page.waitForTimeout(500); await shot("editor-restyled-slide");
 
-  step("export"); await page.goto(`${presUrl}?tab=export`); await page.waitForSelector("text=Content integrity"); await shot("export-tab");
+  step("amends chat (editor, per slide)");
+  await page.locator("aside >> nth=0 >> .slide-frame").nth(3).click();
+  await page.click("button:has-text('Amends chat')");
+  await page.fill("textarea[placeholder='Amend this slide…']", "make the heading bigger and gold");
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("text=Applying: heading", { timeout: 60000 }); await page.waitForTimeout(800); await shot("editor-amends");
+  await page.click("button:has-text('Undo')"); await page.waitForSelector("text=undone", { timeout: 30000 });
+  step("amends tab (per-slide threads + whole deck)");
+  await page.goto(`${presUrl}?tab=amends`); await page.waitForSelector("text=Write amends for this slide");
+  await page.locator("text=Write amends for this slide").nth(1).click();
+  await page.fill("textarea[placeholder='Amend this slide…']", "خلفية داكنة"); await page.keyboard.press("Enter");
+  await page.waitForSelector("text=تم تطبيق", { timeout: 60000 }); await page.waitForTimeout(800); await shot("amends-tab");
+  const amendCount = await prisma.amend.count({ where: { presentationId: presId } }); console.log("  amend messages stored:", amendCount);
+
+  step("fonts: upload + select in a style");
+  await page.goto(`${BASE}/settings`); await page.click("button:has-text('Upload font')");
+  await page.setInputFiles("input[type=file][accept='.ttf,.otf,.woff,.woff2']", "public/fonts/Cairo-Bold.ttf");
+  await page.fill("div.fixed input.input >> nth=0", "Brand Sans"); await page.click("div.fixed label:has-text('Supports Arabic')"); await page.locator("div.fixed button.btn-primary").click();
+  await page.waitForSelector("text=Brand Sans", { timeout: 30000 }); await shot("settings-fonts");
+  await page.goto(`${BASE}/styles/new`); await page.waitForSelector("text=Typography treatment");
+  const headingFontSelect = page.locator("select.select").filter({ hasText: "Brand Sans" }).first(); await headingFontSelect.selectOption("Brand Sans");
+  await page.fill("input.input >> nth=0", "Portrait Test Style"); await page.selectOption("select.select >> nth=0", "playful"); // tone
+  await page.click("button:has-text('Create style')"); await page.waitForURL(/\/styles\/(?!new)[a-z0-9]+$/); await shot("style-created");
+  const createdStyle = await prisma.visualStyle.findFirst({ where: { name: "Portrait Test Style" } }); console.log("  style fonts:", (createdStyle?.spec as { fonts: { heading: string } })?.fonts.heading, "tone:", createdStyle?.tone);
+
+  step("vertical presentation with style picker");
+  await page.goto(`${BASE}/presentations/new`);
+  await page.fill("input.input >> nth=0", "Vertical Story Deck"); await page.fill("textarea.textarea", CONTENT); await page.waitForSelector("text=content blocks detected");
+  await page.click("button:has-text('Vertical')");
+  await page.locator("button.card:has-text('Portrait Test Style')").click();
+  await page.locator("div:has(> label:has-text('Tone & voice')) select").first().selectOption("fun");
+  await page.click("button:has-text('Create & continue to generation')"); await page.waitForURL(/\/presentations\/[a-z0-9]+\?tab=generate/);
+  const vUrl = page.url().split("?")[0];
+  await page.click("button:has-text('Generate presentation')"); await page.waitForSelector("a:has-text('Review in editor')", { timeout: 120000 });
+  await page.goto(`${vUrl}/editor`); await page.waitForSelector("text=Slide 1 /"); await page.waitForTimeout(1500); await shot("vertical-editor");
+  const vSlides = await prisma.slide.findMany({ where: { presentation: { name: "Vertical Story Deck" } }, select: { width: true, height: true } }); console.log("  vertical slides:", vSlides.length, "size:", vSlides[0]?.width + "x" + vSlides[0]?.height);
+  await page.goto(`${vUrl}?tab=export`); await page.click("button:has-text('Check & export')"); await page.waitForSelector("a:has-text('.pdf')", { timeout: 180000 });
+  const vJob = await prisma.exportJob.findFirst({ where: { presentation: { name: "Vertical Story Deck" } }, orderBy: { createdAt: "desc" } }); console.log("  vertical export:", vJob?.status, "verified:", vJob?.verified);
+
+  step("export");
+  await page.goto(`${presUrl}?tab=export`); await page.goto(`${presUrl}?tab=export`); await page.waitForSelector("text=Content integrity"); await shot("export-tab");
   await page.click("button:has-text('Check & export')"); await page.waitForSelector("a:has-text('.pptx')", { timeout: 180000 }); await page.waitForSelector("a:has-text('.pdf')", { timeout: 180000 }); await shot("export-done");
   for (const ext of ["pptx", "pdf"]) { const [dl] = await Promise.all([page.waitForEvent("download"), page.click(`a:has-text('.${ext}')`)]); const to = path.join(OUT, `download.${ext}`); await dl.saveAs(to); console.log(`  downloaded ${ext}: ${(await fs.stat(to)).size} bytes`); }
   const exportJob = await prisma.exportJob.findFirst({ where: { presentationId: presId }, orderBy: { createdAt: "desc" }, include: { files: true } });
@@ -105,7 +146,8 @@ async function main() {
   step("duplicate + list"); await page.goto(`${BASE}/presentations`); await shot("presentations-list");
   await page.goto(`${BASE}/styles`); await page.waitForSelector("text=Cinematic"); await shot("styles");
   await page.goto(`${BASE}/history`); await shot("history"); await page.goto(`${BASE}/settings`); await shot("settings");
+  } catch (e) { await page.screenshot({ path: path.join(OUT, "FAILURE.png") }); console.log("panel:", (await page.locator("body").innerText()).slice(0, 1500)); throw e; }
   await browser.close();
   console.log("DONE", shots.length, "screenshots");
 }
-main().catch((e) => { console.error("E2E FAILED:", e); process.exit(1); }).finally(() => prisma.$disconnect());
+main().catch(async (e) => { console.error("E2E FAILED:", e); try { const { chromium } = await import("playwright-core"); void chromium; } catch {} process.exit(1); }).finally(() => prisma.$disconnect());

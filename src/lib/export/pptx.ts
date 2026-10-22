@@ -1,5 +1,5 @@
 import PptxGenJS from "pptxgenjs";
-import { CANVAS_W, type ElementModel, type ImageProps, type ShapeProps, type SlideModel, type TextProps } from "../types";
+import { CANVAS_H, CANVAS_W, type ElementModel, type ImageProps, type ShapeProps, type SlideModel, type TextProps } from "../types";
 import { rasterizeBackground } from "./pdf";
 
 const PX_PER_IN = CANVAS_W / 13.333; // 144 px per inch on the 1920px canvas
@@ -25,8 +25,9 @@ export interface PptxWarnings { warnings: string[] }
 
 export async function buildPptx(slides: SlideModel[], resolve: DataResolver, title: string): Promise<{ buffer: Buffer; warnings: string[] }> {
   const pptx = new PptxGenJS();
-  pptx.defineLayout({ name: "STUDIO_16x9", width: 13.333, height: 7.5 });
-  pptx.layout = "STUDIO_16x9";
+  const W = slides[0]?.w || CANVAS_W, H = slides[0]?.h || CANVAS_H;
+  pptx.defineLayout({ name: "STUDIO", width: Math.round((W / PX_PER_IN) * 1000) / 1000, height: Math.round((H / PX_PER_IN) * 1000) / 1000 });
+  pptx.layout = "STUDIO";
   pptx.title = title;
   const warnings: string[] = [];
   const bgCache = new Map<string, string>();
@@ -45,7 +46,7 @@ export async function buildPptx(slides: SlideModel[], resolve: DataResolver, tit
       const css = `background-color:${bg.color || "#fff"};background:${bgCss.join(",")};`;
       const key = css.length > 5000 ? `${bg.imageSrc}|${bg.overlay}|${bg.gradient}` : css;
       let data = bgCache.get(key);
-      if (!data) { data = `image/jpeg;base64,${(await rasterizeBackground(css, "jpeg")).toString("base64")}`; bgCache.set(key, data); }
+      if (!data) { data = `image/jpeg;base64,${(await rasterizeBackground(css, "jpeg", { w: W, h: H })).toString("base64")}`; bgCache.set(key, data); }
       slide.background = { data };
     } else {
       slide.background = { color: toPptxColor(bg.color || "#ffffff").color || "FFFFFF" };

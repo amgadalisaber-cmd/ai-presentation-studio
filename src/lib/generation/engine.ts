@@ -5,7 +5,8 @@ import { textHeight, countLines } from "./measure";
 import { splitIntoFragments } from "../content/parser";
 import { typeProfile, type CompanyEntry, type GenContext, type LogoRef } from "./types";
 
-const W = CANVAS_W, H = CANVAS_H;
+let W = CANVAS_W, H = CANVAS_H;
+const portrait = () => W < H;
 const MIN_BODY = 22;   // px on 1920 canvas (~11pt). Below this text is considered unreadable.
 
 interface Rect { x: number; y: number; w: number; h: number }
@@ -22,6 +23,8 @@ interface Env {
   z: number;
   slideCount: number;
   imageSlots: number;
+  radius: number;
+  tone?: string;
 }
 
 function fontFor(env: Env, lang: Lang, heading: boolean) {
@@ -136,7 +139,10 @@ function regions(env: Env, opts: { hasHeading: boolean; hasLabel: boolean; withI
   const cols = (r: Rect, n: number): Rect[] => { const cw = (r.w - gap * (n - 1)) / n; return Array.from({ length: n }, (_, i) => ({ x: r.x + i * (cw + gap), y: r.y, w: cw, h: r.h })); };
   let image: Rect | undefined;
   let area: Rect = { x: M, y: top, w: full, h: bottom - top };
-  if (img) {
+  if (img && portrait() && (c.imagePlacement === "right-half" || c.imagePlacement === "left-half" || c.imagePlacement === "inset")) {
+    const bandH = Math.round(H * 0.34);
+    image = { x: 0, y: 0, w: W, h: bandH }; area = { x: M, y: bandH + 48, w: full, h: bottom - bandH - 48 };
+  } else if (img) {
     if (c.imagePlacement === "right-half") { image = { x: W / 2 + 40, y: 0, w: W / 2 - 40, h: H }; area = { x: M, y: top, w: W / 2 - M - 40, h: bottom - top }; }
     else if (c.imagePlacement === "left-half") { image = { x: 0, y: 0, w: W / 2 - 40, h: H }; area = { x: W / 2 + 40, y: top, w: W / 2 - M - 40, h: bottom - top }; }
     else if (c.imagePlacement === "top-band") { image = { x: M, y: top, w: full, h: 300 }; area = { x: M, y: top + 300 + 40, w: full, h: bottom - top - 340 }; }
@@ -251,7 +257,7 @@ function tryCards(env: Env, pieces: Piece[], area: Rect): { placed: ElementModel
   const items = pieces.filter((p) => p.block.kind === "list_item");
   if (items.length < 2 || items.length !== pieces.length) return null;
   const n = Math.min(items.length, 6);
-  const colsN = n <= 3 ? n : n === 4 ? 2 : 3; const rowsN = n <= 3 ? 1 : 2;
+  const colsN = portrait() ? Math.min(2, n) : n <= 3 ? n : n === 4 ? 2 : 3; const rowsN = Math.ceil(n / colsN);
   const gap = 32; const cw = (area.w - gap * (colsN - 1)) / colsN; const chMax = (area.h - gap * (rowsN - 1)) / rowsN;
   const pad = 36;
   const size = Math.max(MIN_BODY, Math.min(env.spec.scale.body, env.spec.scale.body * (cw > 500 ? 1 : 0.9)));
@@ -263,7 +269,7 @@ function tryCards(env: Env, pieces: Piece[], area: Rect): { placed: ElementModel
     const p = items[i];
     const h = heights[i];
     const x = area.x + (i % colsN) * (cw + gap); const y = area.y + Math.floor(i / colsN) * (ch + gap);
-    placed.push(shape(env, { x, y, w: cw, h: ch }, { shape: "rect", fill: env.pal.surface, radius: env.spec.decorative.frames ? 18 : 6, stroke: withAlpha(env.pal.accent, 0.35), strokeWidth: 1 }));
+    placed.push(shape(env, { x, y, w: cw, h: ch }, { shape: "rect", fill: env.pal.surface, radius: env.radius, stroke: withAlpha(env.pal.accent, 0.35), strokeWidth: 1 }));
     placed.push(shape(env, { x: env.dir === "rtl" ? x + cw - pad - 48 : x + pad, y: y + pad, w: 48, h: 6 }, { shape: "rect", fill: env.pal.accent }));
     placed.push(text(env, { x: x + pad, y: y + pad + 30, w: cw - pad * 2, h: ch - pad * 2 - 30 }, p.text, { blockId: p.block.id, fragmentIndex: p.fragmentIndex, fragmentCount: p.fragmentCount, fontSize: size, lang: p.block.lang, dir: p.block.dir, align: alignFor(p.block.dir) }));
   }
@@ -303,6 +309,7 @@ export function buildImagePrompt(env: Env, concept: string) {
   const it = env.spec.imageTreatment;
   const parts = [it.promptPrefix, `Subject: ${concept}.`];
   if (env.spec.lighting) parts.push(`Lighting: ${env.spec.lighting}`);
+  const voice = env.ctx.metadata.voice || env.spec.voice; if (env.tone || voice) parts.push(`Tone & voice: ${[env.tone, voice].filter(Boolean).join(" — ")}.`);
   if (env.ctx.customDirection) parts.push(`Art direction notes: ${env.ctx.customDirection}`);
   const r = brandRestrictions(env); if (r.length) parts.push(`Brand restrictions: ${r.join("; ")}`);
   parts.push(`Aspect ratio ${it.aspect}. Absolutely no text, lettering, logos or watermarks in the image.`);
@@ -353,6 +360,12 @@ function companiesRow(env: Env, entries: CompanyEntry[], r: Rect, label: string,
   return out;
 }
 
+/** Presented-by / presented-to row rectangles: side by side in landscape, stacked in portrait. */
+function rowRects(x: number, y: number, w: number, h: number, grow: "up" | "down"): { byR: Rect; toR: Rect } {
+  if (!portrait()) return { byR: { x, y, w: w / 2 - 20, h }, toR: { x: x + w / 2 + 20, y, w: w / 2 - 20, h } };
+  return grow === "up" ? { byR: { x, y: y - h - 10, w, h }, toR: { x, y, w, h } } : { byR: { x, y, w, h }, toR: { x, y: y + h + 10, w, h } };
+}
+
 function coverSlide(env: Env): SlideModel {
   const { spec, pal, margin: M, ctx } = env;
   const slide: SlideModel = { index: 0, layoutKey: `cover-${spec.composition.coverLayout}`, purpose: "cover", background: background(env, "cover"), styleId: env.ctx.styleId, elements: [] };
@@ -391,9 +404,22 @@ function coverSlide(env: Env): SlideModel {
     if (spec.decorative.largeIndex && lay === "poster") slide.elements.push(text(env, { x: M, y: M * 0.6, w: 600, h: 250 }, "01", { origin: "decoration", role: "number", fontSize: 200, lineHeight: 1.1, fontWeight: 900, color: withAlpha(pal.accent, 0.9), dir: "ltr", lang: "neutral", fontFamily: spec.fonts.heading }));
     if (spec.decorative.rules && center) slide.elements.push(shape(env, { x: W / 2 - 60, y: ty - 40, w: 120, h: 3 }, { shape: "rect", fill: pal.accent }));
     const rowY = center ? H - M - 150 : M * 0.7;
-    const rowX = center ? M : M + (spec.decorative.largeIndex ? 360 : 0);
-    if (by.length) slide.elements.push(...companiesRow(env, by, { x: rowX, y: rowY, w: W / 2 - rowX - 20, h: 150 }, byLabel, { compact: true }));
-    if (to.length) slide.elements.push(...companiesRow(env, to, { x: W / 2 + 20, y: rowY, w: W / 2 - M - 20, h: 150 }, toLabel, { compact: true }));
+    const rowX = center ? M : M + (spec.decorative.largeIndex && !portrait() ? 360 : 0);
+    const rr = rowRects(rowX, rowY, W - M - rowX, 150, center ? "up" : "down");
+    if (by.length) slide.elements.push(...companiesRow(env, by, rr.byR, byLabel, { compact: true }));
+    if (to.length) slide.elements.push(...companiesRow(env, to, rr.toR, toLabel, { compact: true }));
+  } else if (lay === "split" && portrait()) {
+    const bandH = Math.round(H * 0.46);
+    if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "cover-image" }; slide.elements.push(imageEl(env, { x: 0, y: 0, w: W, h: bandH }, { placeholder: true, concept })); }
+    else slide.elements.push(shape(env, { x: 0, y: 0, w: W, h: bandH }, { shape: "rect", fill: pal.surface }), shape(env, { x: 0, y: bandH, w: W, h: 10 }, { shape: "rect", fill: pal.accent }));
+    const tw = W - 2 * M; const th = titleH(Math.min(5, tLines(tw)));
+    const ty = bandH + 90;
+    slide.elements.push(text(env, { x: M, y: ty, w: tw, h: th }, title, titleOpts));
+    if (subtitle) slide.elements.push(text(env, { x: M, y: ty + th + 16, w: tw, h: 50 }, subtitle, { origin: "metadata", role: "label", fontSize: spec.scale.h3 * 0.8, color: pal.accent, letterSpacing: 3, textTransform: "uppercase", dir: env.dir }));
+    if (metaBits.length) slide.elements.push(text(env, { x: M, y: ty + th + 80, w: tw, h: 70 }, metaBits.join("  ·  "), { origin: "metadata", role: "caption", fontSize: spec.scale.caption, color: pal.muted, dir: env.dir }));
+    const rr = rowRects(M, H - M - 160, tw, 150, "up");
+    if (by.length) slide.elements.push(...companiesRow(env, by, rr.byR, byLabel, { compact: true }));
+    if (to.length) slide.elements.push(...companiesRow(env, to, rr.toR, toLabel, { compact: true }));
   } else if (lay === "split") {
     const half = W / 2;
     if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "cover-image" }; slide.elements.push({ ...imageEl(env, { x: half, y: 0, w: half, h: H }, { placeholder: true, concept }), props: { ...imageEl(env, { x: 0, y: 0, w: 1, h: 1 }, { placeholder: true }).props, concept } as ImageProps }); }
@@ -414,9 +440,9 @@ function coverSlide(env: Env): SlideModel {
     slide.elements.push(text(env, { x: M, y: ty, w: tw, h: th }, title, titleOpts));
     if (subtitle) slide.elements.push(text(env, { x: M, y: ty + th + 16, w: tw / 2, h: 50 }, subtitle, { origin: "metadata", role: "label", fontSize: spec.scale.h3 * 0.75, color: pal.accent, letterSpacing: 3, textTransform: "uppercase", dir: env.dir }));
     if (metaBits.length) slide.elements.push(text(env, { x: M, y: ty + th + 70, w: tw / 2, h: 40 }, metaBits.join("  ·  "), { origin: "metadata", role: "caption", fontSize: spec.scale.caption, color: pal.muted, dir: env.dir }));
-    const rowY = M * 0.8;
-    if (by.length) slide.elements.push(...companiesRow(env, by, { x: M, y: rowY, w: W / 2 - M, h: 150 }, byLabel, { compact: true }));
-    if (to.length) slide.elements.push(...companiesRow(env, to, { x: W / 2 + 20, y: rowY, w: W / 2 - M - 20, h: 150 }, toLabel, { compact: true }));
+    const rowY = M * 0.8; const rr = rowRects(M, rowY, W - 2 * M, 150, "down");
+    if (by.length) slide.elements.push(...companiesRow(env, by, rr.byR, byLabel, { compact: true }));
+    if (to.length) slide.elements.push(...companiesRow(env, to, rr.toR, toLabel, { compact: true }));
   } else if (lay === "grid") {
     slide.elements.push(shape(env, { x: 0, y: 0, w: W, h: 24 }, { shape: "rect", fill: pal.accent }));
     for (let i = 1; i < 4; i++) slide.elements.push(shape(env, { x: M + ((W - 2 * M) / 4) * i, y: 0, w: 1, h: H }, { shape: "rect", fill: withAlpha(pal.text, 0.08) }));
@@ -425,21 +451,21 @@ function coverSlide(env: Env): SlideModel {
     if (subtitle) slide.elements.push(text(env, { x: M, y: M + th + 20, w: tw, h: 50 }, subtitle, { origin: "metadata", role: "label", fontSize: spec.scale.h3 * 0.8, color: pal.accent, dir: env.dir, fontWeight: 700 }));
     if (metaBits.length) slide.elements.push(text(env, { x: M, y: M + th + 80, w: tw, h: 50 }, metaBits.join("  /  "), { origin: "metadata", role: "caption", fontSize: spec.scale.caption, color: pal.muted, dir: env.dir }));
     slide.elements.push(shape(env, { x: M, y: H - M - 220, w: (W - 2 * M) / 4 - 30, h: 220 }, { shape: "rect", fill: pal.accent }));
-    const rowY = H - M - 160;
-    if (by.length) slide.elements.push(...companiesRow(env, by, { x: M + (W - 2 * M) / 4, y: rowY, w: (W - 2 * M) * 0.4, h: 160 }, byLabel, { compact: true }));
-    if (to.length) slide.elements.push(...companiesRow(env, to, { x: M + (W - 2 * M) * 0.65, y: rowY, w: (W - 2 * M) * 0.35, h: 160 }, toLabel, { compact: true }));
+    const rowY = H - M - 160; const rr = rowRects(M + (W - 2 * M) / 4, rowY, (W - 2 * M) * 0.75, 160, "up");
+    if (by.length) slide.elements.push(...companiesRow(env, by, rr.byR, byLabel, { compact: true }));
+    if (to.length) slide.elements.push(...companiesRow(env, to, rr.toR, toLabel, { compact: true }));
     if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "cover-image" }; slide.elements.push(imageEl(env, { x: M + tw + 40, y: M, w: W - 2 * M - tw - 40, h: H - 2 * M - 250 }, { placeholder: true, concept })); }
   } else { // left-stack
-    if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "cover-image" }; slide.elements.push(imageEl(env, { x: W - M - 640, y: M, w: 640, h: H - 2 * M }, { placeholder: true, concept, radius: 8 })); }
-    const tw = wantImage ? W - 2 * M - 700 : W - 2 * M - 200; const th = titleH(Math.min(5, tLines(tw)));
-    const ty = M + 120;
+    if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "cover-image" }; slide.elements.push(imageEl(env, portrait() ? { x: M, y: M, w: W - 2 * M, h: Math.round(H * 0.3) } : { x: W - M - 640, y: M, w: 640, h: H - 2 * M }, { placeholder: true, concept, radius: 8 })); }
+    const tw = portrait() ? W - 2 * M : wantImage ? W - 2 * M - 700 : W - 2 * M - 200; const th = titleH(Math.min(5, tLines(tw)));
+    const ty = portrait() && wantImage ? M + Math.round(H * 0.3) + 110 : M + 120;
     if (subtitle) slide.elements.push(text(env, { x: M, y: ty - 60, w: tw, h: 46 }, subtitle, { origin: "metadata", role: "label", fontSize: spec.scale.caption + 2, color: pal.accent, letterSpacing: 3, textTransform: "uppercase", dir: env.dir }));
     slide.elements.push(text(env, { x: M, y: ty, w: tw, h: th }, title, titleOpts));
     if (spec.decorative.rules) slide.elements.push(shape(env, { x: M, y: ty + th + 30, w: 120, h: 3 }, { shape: "rect", fill: pal.accent }));
     if (metaBits.length) slide.elements.push(text(env, { x: M, y: ty + th + 56, w: tw, h: 70 }, metaBits.join("  ·  "), { origin: "metadata", role: "caption", fontSize: spec.scale.caption, color: pal.muted, dir: env.dir }));
-    const rowY = H - M - 160;
-    if (by.length) slide.elements.push(...companiesRow(env, by, { x: M, y: rowY, w: (tw) / 2 - 20, h: 160 }, byLabel, { compact: true }));
-    if (to.length) slide.elements.push(...companiesRow(env, to, { x: M + tw / 2 + 20, y: rowY, w: tw / 2 - 20, h: 160 }, toLabel, { compact: true }));
+    const rowY = H - M - 160; const rr = rowRects(M, rowY, tw, 160, "up");
+    if (by.length) slide.elements.push(...companiesRow(env, by, rr.byR, byLabel, { compact: true }));
+    if (to.length) slide.elements.push(...companiesRow(env, to, rr.toR, toLabel, { compact: true }));
   }
   // Partner / sponsor / collaborator logos as a small footer row
   if (others.length) {
@@ -462,8 +488,10 @@ function sectionSlide(env: Env, heading: BlockModel, sectionNo: number, body?: B
   const center = spec.composition.alignment === "center";
   if (wantImage) { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "background" }; slide.background.overlay = spec.background.overlay || `linear-gradient(90deg, ${withAlpha(pal.background, 0.9)}, ${withAlpha(pal.background, 0.5)})`; }
   else if (env.images.length) { const ref = env.images[env.imageCursor++ % env.images.length]; slide.background.imageAssetId = ref.assetId; slide.background.imageSrc = `/api/files/asset/${ref.assetId}`; slide.background.overlay = spec.background.overlay || `linear-gradient(90deg, ${withAlpha(pal.background, 0.92)}, ${withAlpha(pal.background, 0.55)})`; }
-  const size = Math.min(spec.scale.h1 * 0.9, heading.text.length > 40 ? spec.scale.h1 * 0.6 : spec.scale.h1 * 0.9);
-  const tw = center ? 1400 : Math.min(1300, W - 2 * M); const th = size * 1.1 * Math.min(3, Math.ceil((heading.text.length * size * 0.55) / tw)) + 20;
+  const size = Math.min(spec.scale.h1 * 0.9, heading.text.length > 40 ? spec.scale.h1 * 0.6 : spec.scale.h1 * 0.9) * (portrait() ? 0.85 : 1);
+  const tw = center ? Math.min(1400, W - 2 * M) : Math.min(1300, W - 2 * M);
+  const upperH = spec.fonts.headingTransform === "uppercase" && heading.lang === "en";
+  const th = size * 1.1 * Math.min(5, countLines(heading.text, size, tw, { uppercase: upperH, weight: spec.fonts.headingWeight, letterSpacing: heading.lang === "ar" ? 0 : spec.fonts.headingLetterSpacing })) + 20;
   const ty = spec.composition.headingPlacement === "bottom" ? H - M - th - 60 : (H - th) / 2 - 40;
   if (spec.decorative.sectionNumbers) slide.elements.push(text(env, { x: center ? (W - 300) / 2 : M, y: ty - (spec.decorative.largeIndex ? 210 : spec.scale.h3 * 1.3 + 20), w: spec.decorative.largeIndex ? 600 : 300, h: spec.decorative.largeIndex ? 200 : spec.scale.h3 * 1.3 }, String(sectionNo).padStart(2, "0"), { origin: "decoration", role: "number", fontSize: spec.decorative.largeIndex ? 170 : spec.scale.h3, lineHeight: 1.1, fontWeight: spec.decorative.largeIndex ? 900 : 500, color: pal.accent, dir: "ltr", lang: "neutral", align: center ? "center" : "left", fontFamily: spec.fonts.heading }));
   if (spec.decorative.dividerStyle === "block") slide.elements.push(shape(env, { x: env.dir === "rtl" ? W - M - 18 : M - 40, y: ty, w: 18, h: th }, { shape: "rect", fill: pal.accent }));
@@ -479,7 +507,7 @@ function participantsSlide(env: Env): SlideModel | null {
   const { spec, margin: M } = env;
   const slide: SlideModel = { index: 0, layoutKey: "participants", purpose: "participants", background: background(env, "normal"), styleId: env.ctx.styleId, elements: [] };
   const byLabel = env.dir === "rtl" ? "مقدم من" : "Presented by"; const toLabel = env.dir === "rtl" ? "مقدم إلى" : "Presented to";
-  const colW = (W - 2 * M - 80) / 2;
+  const colW = portrait() ? W - 2 * M : (W - 2 * M - 80) / 2;
   const list = (entries: CompanyEntry[], x: number, label: string) => {
     const out: ElementModel[] = [];
     out.push(text(env, { x, y: M, w: colW, h: 50 }, label, { origin: "metadata", role: "label", fontSize: spec.scale.caption + 2, color: env.pal.accent, letterSpacing: 3, textTransform: "uppercase", dir: env.dir }));
@@ -494,7 +522,7 @@ function participantsSlide(env: Env): SlideModel | null {
     return out;
   };
   if (by.length) slide.elements.push(...list(by, M, byLabel));
-  if (to.length) slide.elements.push(...list(to, M + colW + 80, toLabel));
+  if (to.length) { const toEls = list(to, portrait() ? M : M + colW + 80, toLabel); if (portrait()) { const byBottom = Math.max(M, ...slide.elements.map((e) => e.y + e.h)) + 60 - M; for (const e of toEls) e.y += byBottom; } slide.elements.push(...toEls); }
   if (env.dir === "rtl") slide.elements = slide.elements.map(mirror);
   return slide;
 }
@@ -505,9 +533,12 @@ function closingSlide(env: Env): SlideModel | null {
   const slide: SlideModel = { index: 0, layoutKey: "closing", purpose: "closing", background: background(env, "section"), styleId: env.ctx.styleId, elements: [] };
   const center = spec.composition.alignment === "center" || spec.composition.coverLayout === "centered";
   const titleLang = langOf(env.ctx.name);
-  slide.elements.push(text(env, { x: center ? 260 : M, y: H / 2 - 120, w: W - (center ? 520 : 2 * M), h: 130 }, env.ctx.name, { origin: "metadata", role: "h2", fontSize: spec.scale.h2, align: center ? "center" : alignFor(titleLang.dir), lang: titleLang.lang, dir: titleLang.dir }));
+  const cx = center && !portrait() ? 260 : M; const cw = W - 2 * cx;
+  const cLines = countLines(env.ctx.name, spec.scale.h2, cw, { uppercase: spec.fonts.headingTransform === "uppercase" && titleLang.lang === "en", weight: spec.fonts.headingWeight, letterSpacing: titleLang.lang === "ar" ? 0 : spec.fonts.headingLetterSpacing });
+  const cth = spec.scale.h2 * 1.12 * Math.min(5, cLines) + 16;
+  slide.elements.push(text(env, { x: cx, y: H / 2 - cth + 10, w: cw, h: cth }, env.ctx.name, { origin: "metadata", role: "h2", fontSize: spec.scale.h2, align: center ? "center" : alignFor(titleLang.dir), lang: titleLang.lang, dir: titleLang.dir }));
   if (spec.decorative.rules) slide.elements.push(shape(env, { x: center ? W / 2 - 60 : M, y: H / 2 + 30, w: 120, h: 3 }, { shape: "rect", fill: pal.accent }));
-  if (by.length) slide.elements.push(...companiesRow(env, by, { x: center ? 260 : M, y: H / 2 + 70, w: W - (center ? 520 : 2 * M), h: 160 }, env.dir === "rtl" ? "مقدم من" : "Presented by", { compact: true }));
+  if (by.length) slide.elements.push(...companiesRow(env, by, { x: cx, y: H / 2 + 70, w: cw, h: 160 }, env.dir === "rtl" ? "مقدم من" : "Presented by", { compact: true }));
   if (env.dir === "rtl") slide.elements = slide.elements.map(mirror);
   return slide;
 }
@@ -515,12 +546,31 @@ function closingSlide(env: Env): SlideModel | null {
 /* ------------------------------------------------------------------ */
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
+/** Applies tone & voice to a style spec (visual knobs only; wording is never affected). */
+export function toneAdjust(spec: StyleSpec, tone?: string): { spec: StyleSpec; radius: number } {
+  const t = (tone || spec.tone || "").toLowerCase();
+  const out: StyleSpec = JSON.parse(JSON.stringify(spec));
+  let radius = out.decorative.frames ? 18 : 6;
+  if (t === "fun" || t === "playful") { radius = 28; out.fonts.headingWeight = Math.max(700, out.fonts.headingWeight); out.imageTreatment.promptPrefix += " Playful, vibrant, lively mood."; out.decorative.largeIndex = true; }
+  else if (t === "bold" || t === "energetic") { out.fonts.headingWeight = Math.min(900, out.fonts.headingWeight + 100); out.fonts.headingTransform = "uppercase"; out.scale.h1 = Math.round(out.scale.h1 * 1.08); out.imageTreatment.promptPrefix += " High-energy, dynamic, high contrast."; }
+  else if (t === "calm" || t === "minimal") { out.scale.lineHeight = Math.min(1.8, out.scale.lineHeight + 0.1); out.density = "airy"; out.imageTreatment.promptPrefix += " Calm, quiet, serene, uncluttered."; radius = 4; }
+  else if (t === "luxurious") { out.fonts.headingLetterSpacing = Math.max(out.fonts.headingLetterSpacing, 2); out.fonts.headingWeight = Math.min(out.fonts.headingWeight, 500); out.imageTreatment.promptPrefix += " Refined, luxurious, premium materials."; radius = 0; }
+  else if (t === "serious" || t === "professional" || t === "technical") { radius = t === "technical" ? 0 : 6; out.imageTreatment.promptPrefix += t === "technical" ? " Precise, technical, objective." : " Professional, credible, composed."; }
+  else if (t === "friendly" || t === "inspirational") { radius = 16; out.imageTreatment.promptPrefix += t === "friendly" ? " Warm, approachable, human." : " Uplifting, aspirational, bright."; }
+  return { spec: out, radius };
+}
+
 export function makeEnv(ctx: GenContext): Env {
-  const spec = ctx.spec;
+  const size = ctx.orientation === "portrait" ? { w: CANVAS_H, h: CANVAS_W } : { w: CANVAS_W, h: CANVAS_H };
+  W = size.w; H = size.h;
+  const tone = ctx.metadata.tone || ctx.spec.tone;
+  const adjusted = toneAdjust(ctx.spec, tone);
+  const spec = adjusted.spec;
+  if (W < H) { spec.scale.body = Math.round(spec.scale.body * 1.1); spec.scale.h3 = Math.round(spec.scale.h3 * 1.05); }
   const primary = ctx.participants.find((p) => p.role === "primary") || ctx.participants[0];
   const pal = resolvePalette(spec, primary?.brand.colors, ctx.metadata.colorMode || "auto");
   const dir: Dir = ctx.language === "ar" ? "rtl" : ctx.language === "ar-en" ? (ctx.blocks.filter((b) => b.dir === "rtl").length >= ctx.blocks.length / 2 ? "rtl" : "ltr") : "ltr";
-  return { ctx, spec, pal, margin: marginFor(spec), dir, primaryLogo: primary?.brand.logo || null, images: ctx.aiImages ? [] : (primary?.brand.images || []), imageCursor: 0, z: 1, slideCount: 0, imageSlots: 0 };
+  return { ctx, spec, pal, margin: marginFor(spec) * (W < H ? 0.7 : 1), dir, primaryLogo: primary?.brand.logo || null, images: ctx.aiImages ? [] : (primary?.brand.images || []), imageCursor: 0, z: 1, slideCount: 0, imageSlots: 0, radius: adjusted.radius, tone };
 }
 
 interface Section { heading?: BlockModel; blocks: BlockModel[]; imageConcept?: string }
@@ -583,11 +633,11 @@ function contentSlidesForSection(env: Env, sec: Section, sectionNo: number, star
       if (env.ctx.aiImages) {
         const concept = conceptFrom(env, sec.heading?.text, rest[0]?.text, sec.imageConcept);
         if (spec.composition.imagePlacement === "full-bleed") { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "background" }; slide.background.overlay = spec.background.overlay || `linear-gradient(90deg, ${withAlpha(pal.background, 0.95)} 0%, ${withAlpha(pal.background, 0.75)} 60%, ${withAlpha(pal.background, 0.35)} 100%)`; }
-        else { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "slide-image" }; slide.elements.push(imageEl(env, R.image, { placeholder: true, concept, radius: spec.decorative.frames ? 16 : 0 })); }
+        else { slide.imageRequest = { concept, prompt: buildImagePrompt(env, concept), placement: "element", elementKey: "slide-image" }; slide.elements.push(imageEl(env, R.image, { placeholder: true, concept, radius: env.radius })); }
       } else if (env.images.length) {
         const ref = env.images[env.imageCursor++ % env.images.length];
         if (spec.composition.imagePlacement === "full-bleed") { slide.background.imageAssetId = ref.assetId; slide.background.imageSrc = `/api/files/asset/${ref.assetId}`; slide.background.overlay = spec.background.overlay || `linear-gradient(90deg, ${withAlpha(pal.background, 0.95)} 0%, ${withAlpha(pal.background, 0.75)} 60%, ${withAlpha(pal.background, 0.35)} 100%)`; }
-        else slide.elements.push(imageEl(env, R.image, { assetId: ref.assetId, radius: spec.decorative.frames ? 16 : 0 }));
+        else slide.elements.push(imageEl(env, R.image, { assetId: ref.assetId, radius: env.radius }));
       }
     }
     const area: Rect = { x: R.columns[0].x, y: R.columns[0].y, w: R.columns[R.columns.length - 1].x + R.columns[R.columns.length - 1].w - R.columns[0].x, h: R.columns[0].h };
@@ -629,7 +679,7 @@ export function generateSlides(ctx: GenContext): SlideModel[] {
     slides.push(...made);
   }
   if (typeProfile(ctx.type).closing && (ctx.presentedByEnabled && ctx.presentedBy.length)) { const c = closingSlide(env); if (c) slides.push(c); }
-  slides.forEach((s, i) => { s.index = i; });
+  slides.forEach((s, i) => { s.index = i; s.w = W; s.h = H; });
   // chrome for non-content slides (section, participants, closing) – slide numbers etc.
   for (const s of slides) if (s.purpose === "section" || s.purpose === "participants" || s.purpose === "closing") chrome(env, s, s.index + 1);
   return slides;
@@ -646,14 +696,15 @@ export interface FragMeta { realId: string; fi: number; fc: number }
 export function relayoutSlide(ctx: GenContext, slide: SlideModel, sectionNo: number): { slides: SlideModel[]; fragMeta: Map<string, FragMeta> } {
   const env = makeEnv(ctx);
   const fragMeta = new Map<string, FragMeta>();
-  if (slide.purpose === "cover") return { slides: [coverSlide(env)], fragMeta };
-  if (slide.purpose === "closing") { const c = closingSlide(env); return { slides: c ? [c] : [slide], fragMeta }; }
-  if (slide.purpose === "participants") { const p = participantsSlide(env); return { slides: p ? [p] : [slide], fragMeta }; }
+  const sized = (x: SlideModel) => ({ ...x, w: W, h: H });
+  if (slide.purpose === "cover") return { slides: [sized(coverSlide(env))], fragMeta };
+  if (slide.purpose === "closing") { const c = closingSlide(env); return { slides: c ? [sized(c)] : [slide], fragMeta }; }
+  if (slide.purpose === "participants") { const p = participantsSlide(env); return { slides: p ? [sized(p)] : [slide], fragMeta }; }
   const map = new Map(ctx.blocks.map((b) => [b.id, b]));
   const textEls = slide.elements.filter((e) => e.type === "text" && e.blockId && map.has(e.blockId)).sort((a, b) => (a.y - b.y) || (a.x - b.x));
   if (!textEls.length) return { slides: [slide], fragMeta };
   const headingEl = textEls.find((e) => map.get(e.blockId!)!.kind === "heading");
-  if (slide.purpose === "section" && headingEl) return { slides: [sectionSlide(env, map.get(headingEl.blockId!)!, sectionNo)], fragMeta };
+  if (slide.purpose === "section" && headingEl) return { slides: [sized(sectionSlide(env, map.get(headingEl.blockId!)!, sectionNo))], fragMeta };
   const pseudo: BlockModel[] = [];
   for (const e of textEls) {
     const b = map.get(e.blockId!)!; const p = e.props as TextProps;
@@ -667,6 +718,7 @@ export function relayoutSlide(ctx: GenContext, slide: SlideModel, sectionNo: num
   const env2 = makeEnv(ctx2);
   // no section dividers when relayouting a single content slide
   const made = contentSlidesForSection({ ...env2, ctx: { ...ctx2, type: "Performance Report" } }, sec, sectionNo, slide.index).map((s) => ({ ...s, styleId: ctx.styleId }));
+  for (const m of made) { m.w = W; m.h = H; }
   const nonEmpty = made.filter((s) => s.elements.some((e) => e.type === "text" && e.blockId));
   return { slides: nonEmpty.length ? nonEmpty : made, fragMeta };
 }

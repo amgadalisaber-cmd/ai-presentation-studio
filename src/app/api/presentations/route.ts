@@ -16,7 +16,7 @@ export const POST = handler(async (req, _p, userId) => {
   if (body.styleId) await ownStyle(userId, body.styleId);
   const content = body.content ?? "";
   const p = await prisma.presentation.create({ data: {
-    userId, name: body.name, type: body.type, customType: body.customType, language: body.language || detectPresentationLanguage(content), languageDetected: detectPresentationLanguage(content),
+    userId, name: body.name, type: body.type, customType: body.customType, language: body.language || detectPresentationLanguage(content), orientation: body.orientation || "landscape", languageDetected: detectPresentationLanguage(content),
     sourceContent: content, contentSource: body.contentSource || "paste", styleId: body.styleId || null, customDirection: body.customDirection, threeStyleMode: body.threeStyleMode ?? false, aiImages: body.aiImages ?? false,
     presentedByEnabled: body.presentedByEnabled ?? true, presentedToEnabled: body.presentedToEnabled ?? true, metadata: (body.metadata || {}) as Prisma.InputJsonValue, projectNotes: body.projectNotes,
   } });

@@ -17,6 +17,8 @@ export interface PresentationMeta {
   date?: string; version?: string; preparedBy?: string; confidentiality?: string; projectName?: string; referenceNumber?: string;
   custom?: { label: string; value: string }[];
   colorMode?: "auto" | "style" | "brand";
+  tone?: string;
+  voice?: string;
 }
 
 export interface GenContext {
@@ -25,6 +27,7 @@ export interface GenContext {
   type: string;
   typeLabel: string;
   language: string;             // ar | en | ar-en | other
+  orientation?: "landscape" | "portrait";
   blocks: BlockModel[];
   spec: StyleSpec;
   styleId: string | null;

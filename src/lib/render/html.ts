@@ -53,13 +53,14 @@ export function backgroundStyle(bg: SlideModel["background"], resolve: SrcResolv
 
 export function renderSlideHtml(slide: SlideModel, resolve: SrcResolver, extraClass = "") {
   const els = [...slide.elements].sort((a, b) => a.z - b.z).map((e) => renderElementHtml(e, resolve)).join("");
-  return `<div class="slide ${extraClass}" data-index="${slide.index}" style="position:relative;width:${CANVAS_W}px;height:${CANVAS_H}px;overflow:hidden;${backgroundStyle(slide.background, resolve)}">${els}</div>`;
+  return `<div class="slide ${extraClass}" data-index="${slide.index}" style="position:relative;width:${slide.w || CANVAS_W}px;height:${slide.h || CANVAS_H}px;overflow:hidden;${backgroundStyle(slide.background, resolve)}">${els}</div>`;
 }
 
 export function renderDeckDocument(slides: SlideModel[], resolve: SrcResolver, fontCss: string, title: string) {
+  const w = slides[0]?.w || CANVAS_W, h = slides[0]?.h || CANVAS_H;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
 ${fontCss}
-@page { size: ${CANVAS_W}px ${CANVAS_H}px; margin: 0; }
+@page { size: ${w}px ${h}px; margin: 0; }
 html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .slide{page-break-after:always;break-after:page;}
 .slide:last-child{page-break-after:auto;break-after:auto;}
