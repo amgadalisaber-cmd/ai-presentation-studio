@@ -141,7 +141,7 @@ export function PresentationSetup({ initial, presentationId, styles, customTypes
         <Field label="Project notes (kept separate from permanent brand guidelines)"><textarea className="textarea min-h-[60px]" value={v.projectNotes} onChange={(e) => set("projectNotes", e.target.value)} /></Field>
       </section>
 
-      <div className="flex items-center justify-end gap-2 sticky bottom-0 bg-ink-950/90 backdrop-blur py-3">
+      <div className="flex items-center justify-end gap-2 sticky bottom-0 bg-white/85 backdrop-blur border-t border-ink-700 py-3">
         <button type="button" className="btn-secondary" disabled={busy} onClick={() => save()}>{presentationId ? "Save changes" : "Save as draft"}</button>
         <button type="button" className="btn-primary" disabled={busy} onClick={() => save("generate")}>{presentationId ? "Save & go to generation" : "Create & continue to generation"}</button>
       </div>

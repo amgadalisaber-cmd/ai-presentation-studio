@@ -21,8 +21,8 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   useEffect(() => { if (!open) return; const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`card w-full ${wide ? "max-w-5xl" : "max-w-lg"} max-h-[90vh] overflow-auto`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-100/40 backdrop-blur-sm p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={`card shadow-pop w-full ${wide ? "max-w-5xl" : "max-w-lg"} max-h-[90vh] overflow-auto`}>
         <div className="flex items-center justify-between border-b border-ink-700 px-5 py-3"><h3 className="h2">{title}</h3><button className="btn-ghost btn-sm" onClick={onClose}><X size={16} /></button></div>
         <div className="p-5">{children}</div>
       </div>
@@ -31,7 +31,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 }
 
 export function Alert({ kind = "info", children }: { kind?: "info" | "warn" | "error" | "success"; children: ReactNode }) {
-  const cls = { info: "border-blue-900 bg-blue-950/40 text-blue-100", warn: "border-amber-900 bg-amber-950/40 text-amber-100", error: "border-red-900 bg-red-950/40 text-red-100", success: "border-emerald-900 bg-emerald-950/40 text-emerald-100" }[kind];
+  const cls = { info: "border-blue-200 bg-blue-50 text-blue-800", warn: "border-amber-200 bg-amber-50 text-amber-800", error: "border-red-200 bg-red-50 text-red-800", success: "border-emerald-200 bg-emerald-50 text-emerald-800" }[kind];
   return <div className={`rounded-md border px-3 py-2 text-sm ${cls}`}>{children}</div>;
 }
 

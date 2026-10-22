@@ -27,7 +27,7 @@ export function ExportPanel({ presentationId, slides, integrityReport, integrity
       <div className="card-pad space-y-4">
         <div className="flex items-start justify-between gap-4"><div><h3 className="h2">Content integrity</h3><p className="muted text-sm">The export pipeline re-verifies every rendered text element against the immutable source and validates rendering (overflow, images) before producing files.</p></div><button className="btn-secondary btn-sm" disabled={busy || slides === 0} onClick={check}><ShieldCheck size={14} /> Run check now</button></div>
         <IntegrityView report={report} />
-        {integrityStatus === "issues" && <p className="text-xs text-amber-200/90">Exports still run, but the files are marked <em>not verified</em> until the discrepancies above are resolved (regenerate the affected slides or restore the text in the editor).</p>}
+        {integrityStatus === "issues" && <p className="text-xs text-amber-700">Exports still run, but the files are marked <em>not verified</em> until the discrepancies above are resolved (regenerate the affected slides or restore the text in the editor).</p>}
       </div>
       <div className="card-pad space-y-4">
         <h3 className="h2">Export</h3>
@@ -51,7 +51,7 @@ export function ExportPanel({ presentationId, slides, integrityReport, integrity
             {j.status === "checking" && <p className="text-xs text-ink-400">Running content-integrity check and render validation…</p>}
             {j.status === "running" && <p className="text-xs text-ink-400">Generating files…</p>}
             {j.error && <Alert kind="error">{j.error}</Alert>}
-            {j.warnings?.length > 0 && <details className="text-xs"><summary className="cursor-pointer text-amber-200">{j.warnings.length} warning(s) — review before sharing</summary><ul className="mt-1 space-y-0.5 text-ink-400">{j.warnings.map((w, i) => <li key={i}>· {w}</li>)}</ul></details>}
+            {j.warnings?.length > 0 && <details className="text-xs"><summary className="cursor-pointer text-amber-700">{j.warnings.length} warning(s) — review before sharing</summary><ul className="mt-1 space-y-0.5 text-ink-400">{j.warnings.map((w, i) => <li key={i}>· {w}</li>)}</ul></details>}
             {j.files.length > 0 && <div className="flex flex-wrap gap-2">{j.files.map((f) => <a key={f.id} href={`/api/files/export/${f.id}`} className="btn-secondary btn-sm"><Download size={13} /> {f.fileName} <span className="text-ink-500">({fmtBytes(f.size)})</span></a>)}</div>}
           </div>
         ))}

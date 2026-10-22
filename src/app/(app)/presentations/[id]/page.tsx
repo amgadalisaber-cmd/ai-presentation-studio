@@ -34,7 +34,7 @@ export default async function PresentationPage({ params, searchParams }: { param
         <div><div className="flex items-center gap-3"><h1 className="h1">{p.name}</h1><StatusBadge status={p.status} /></div><p className="muted text-sm mt-1">{p.type === "Custom" && p.customType ? p.customType : p.type} · {{ ar: "Arabic", en: "English", "ar-en": "Arabic & English", other: "Other" }[p.language]} · {p.orientation === "portrait" ? "Vertical" : "Horizontal"} · {p._count.blocks} content blocks · {p._count.slides} slides{p.style ? ` · ${p.style.name}` : ""}</p></div>
         <div className="flex items-center gap-2">{p._count.slides > 0 && <Link href={`/presentations/${p.id}/editor`} className="btn-primary"><LayoutTemplate size={16} /> Open editor</Link>}<PresentationActions id={p.id} name={p.name} /></div>
       </div>
-      <nav className="flex gap-1 border-b border-ink-700">{TABS.map((t) => <Link key={t} href={`/presentations/${p.id}?tab=${t}`} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-accent text-ink-100" : "border-transparent text-ink-400 hover:text-ink-200"}`}>{t}</Link>)}</nav>
+      <nav className="flex gap-1 border-b border-ink-700">{TABS.map((t) => <Link key={t} href={`/presentations/${p.id}?tab=${t}`} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-accent text-accent-dim" : "border-transparent text-ink-400 hover:text-ink-200"}`}>{t}</Link>)}</nav>
       {tab === "overview" && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="card-pad space-y-3 lg:col-span-2">

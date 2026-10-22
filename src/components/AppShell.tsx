@@ -20,9 +20,9 @@ export function AppShell({ user, children }: { user: { name: string; email: stri
   return (
     <div className="flex h-screen overflow-hidden">
       {!isEditor && (
-        <aside className="flex w-64 flex-none flex-col border-r border-ink-700 bg-ink-900">
+        <aside className="flex w-64 flex-none flex-col border-r border-ink-700 bg-white/80 backdrop-blur">
           <div className="px-5 py-5 border-b border-ink-700">
-            <Link href="/" className="block"><span className="text-[11px] uppercase tracking-[0.25em] text-accent">AI</span><span className="block text-base font-semibold tracking-tight">Presentation Studio</span></Link>
+            <Link href="/" className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent-light to-accent text-white text-sm font-bold shadow-[0_4px_12px_rgba(59,130,246,0.35)]">AI</span><span><span className="block text-[10px] uppercase tracking-[0.2em] text-accent-dim">Studio</span><span className="block text-sm font-semibold tracking-tight">Presentation Studio</span></span></Link>
           </div>
           <div className="px-3 pt-4"><Link href="/presentations/new" className="btn-primary w-full"><Plus size={16} /> New presentation</Link></div>
           <nav className="flex-1 space-y-0.5 px-3 py-4">

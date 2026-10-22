@@ -114,7 +114,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
         <button className="btn-secondary btn-sm" onClick={() => { setStyleChoice(data.presentation.styleId || ""); setStyleModal(true); }}><Palette size={14} /> Change style</button>
         <div className="ml-auto flex items-center gap-2">
           {running && <span className="flex items-center gap-1 text-xs text-ink-400"><Spinner /> Regenerating…</span>}
-          {msg && <span className="text-xs text-emerald-300">{msg}</span>}
+          {msg && <span className="text-xs text-emerald-600">{msg}</span>}
           <span className="flex items-center gap-1 text-xs"><ShieldCheck size={13} className="text-ink-500" /><StatusBadge status={integrity ? (integrity.ok ? "verified" : "issues") : "unverified"} /></span>
           <Link href={`/presentations/${presentationId}?tab=export`} className="btn-primary btn-sm"><Download size={14} /> Export</Link>
         </div>
@@ -127,15 +127,15 @@ export function Editor({ presentationId }: { presentationId: string }) {
           {slides.map((s, i) => (
             <div key={s.id || `new-${i}`} draggable onDragStart={() => { dragFrom.current = i; }} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragFrom.current != null) moveSlide(dragFrom.current, i); dragFrom.current = null; }}
               onClick={(e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) { const m = new Set(multi.size ? multi : [cur]); m.has(i) ? m.delete(i) : m.add(i); setMulti(m); } else { setMulti(new Set()); } setCur(i); setSelEl(null); }}
-              className={`cursor-pointer rounded border-2 ${i === cur ? "border-accent" : multi.has(i) ? "border-accent/50" : "border-transparent hover:border-ink-600"}`}>
+              className={`cursor-pointer rounded-lg border-2 p-0.5 ${i === cur ? "border-accent bg-accent-soft/60" : multi.has(i) ? "border-accent/50" : "border-transparent hover:border-ink-600"}`}>
               <div className="flex items-center justify-between px-1 text-[10px] text-ink-500"><span>{i + 1}</span><span>{s.purpose}</span></div>
               <SlideView slide={s} />
             </div>
           ))}
         </aside>
         {/* canvas */}
-        <div ref={canvasWrap} className="relative flex flex-1 items-center justify-center overflow-hidden bg-ink-950 p-6" onMouseDown={() => setSelEl(null)}>
-          <div style={{ width: SW * scale, height: SH * scale }} className="relative shadow-2xl">
+        <div ref={canvasWrap} className="relative flex flex-1 items-center justify-center overflow-hidden bg-ink-800 p-6" onMouseDown={() => setSelEl(null)}>
+          <div style={{ width: SW * scale, height: SH * scale }} className="relative shadow-pop rounded-sm">
             <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: SW, height: SH, position: "relative", overflow: "hidden", ...cssToObj(backgroundStyle(slide.background, (s) => s)) }}>
               {slide.elements.map((el, i) => <CanvasElement key={el.id || i} el={el} selected={selEl === i} onDown={(e, mode) => onDown(e, i, mode)} />)}
             </div>
@@ -154,7 +154,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
               {slide.background.gradient && <p className="text-xs text-ink-500">Gradient: {slide.background.gradient} <button className="underline" onClick={() => updateSlide((s) => { s.background = { ...s.background, gradient: undefined }; return s; })}>remove</button></p>}
               <label className="label">Slide notes</label><textarea className="textarea min-h-[60px]" value={slide.notes || ""} onChange={(e) => updateSlide((s) => { s.notes = e.target.value; return s; })} />
               <div className="border-t border-ink-700 pt-3"><h3 className="section-title mb-2"><Layers size={12} className="inline mr-1" />Layers</h3><div className="space-y-0.5 max-h-72 overflow-auto">{[...slide.elements].map((e, i) => ({ e, i })).sort((a, b) => b.e.z - a.e.z).map(({ e, i }) => <button key={e.id || i} className="nav-link w-full text-xs py-1" onClick={() => setSelEl(i)}><span className="text-ink-500 w-10">{e.type}</span><span className="truncate">{e.type === "text" ? (e.props as TextProps).text.slice(0, 40) || "(empty)" : e.type === "image" || e.type === "logo" ? (e.props as ImageProps).src?.split("/").pop() || "placeholder" : (e.props as ShapeProps).shape}</span></button>)}</div></div>
-              {integrity && !integrity.ok && <div className="border-t border-ink-700 pt-3 text-xs text-red-200">{integrity.issues.filter((i) => i.severity === "error").length} integrity error(s). See Export tab.</div>}
+              {integrity && !integrity.ok && <div className="border-t border-ink-700 pt-3 text-xs text-red-700">{integrity.issues.filter((i) => i.severity === "error").length} integrity error(s). See Export tab.</div>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -197,7 +197,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
 }
 
 function CanvasElement({ el, selected, onDown }: { el: ElementModel; selected: boolean; onDown: (e: React.MouseEvent, mode: "move" | "resize") => void }) {
-  const base: React.CSSProperties = { position: "absolute", left: el.x, top: el.y, width: el.w, height: el.h, zIndex: el.z, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, outline: selected ? "3px solid #e8c66b" : undefined, cursor: "move", boxSizing: "border-box" };
+  const base: React.CSSProperties = { position: "absolute", left: el.x, top: el.y, width: el.w, height: el.h, zIndex: el.z, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, outline: selected ? "3px solid #3b82f6" : undefined, cursor: "move", boxSizing: "border-box" };
   let inner: React.ReactNode = null;
   if (el.type === "text") {
     const p = el.props as TextProps;
@@ -210,7 +210,7 @@ function CanvasElement({ el, selected, onDown }: { el: ElementModel; selected: b
     const p = el.props as ImageProps;
     inner = p.src ? <img src={p.src} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, filter: p.cssFilter, borderRadius: p.radius || 0, opacity: p.opacity ?? 1, display: "block" }} /> : <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(45deg,rgba(128,128,128,0.12) 0 12px,rgba(128,128,128,0.22) 12px 24px)", display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 22, borderRadius: p.radius || 0 }}>{p.concept ? "AI image pending" : "Image"}</div>;
   }
-  return <div style={base} onMouseDown={(e) => onDown(e, "move")}>{inner}{selected && <div onMouseDown={(e) => onDown(e, "resize")} style={{ position: "absolute", right: -8, bottom: -8, width: 18, height: 18, background: "#e8c66b", cursor: "nwse-resize", borderRadius: 3 }} />}</div>;
+  return <div style={base} onMouseDown={(e) => onDown(e, "move")}>{inner}{selected && <div onMouseDown={(e) => onDown(e, "resize")} style={{ position: "absolute", right: -8, bottom: -8, width: 18, height: 18, background: "#3b82f6", cursor: "nwse-resize", borderRadius: 3 }} />}</div>;
 }
 
 function TextProperties({ p, onChange }: { p: TextProps; onChange: (patch: Record<string, unknown>) => void }) {
@@ -238,7 +238,7 @@ function Preview({ slides, start, onClose }: { slides: SlideModel[]; start: numb
   const [i, setI] = useState(start);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === "ArrowRight" || e.key === " ") setI((x) => Math.min(slides.length - 1, x + 1)); if (e.key === "ArrowLeft") setI((x) => Math.max(0, x - 1)); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [slides.length]);
   const ar = (slides[i].w || CANVAS_W) / (slides[i].h || CANVAS_H); const w = typeof window !== "undefined" ? Math.min(window.innerWidth, window.innerHeight * ar) : 1280;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black" onClick={() => setI((x) => Math.min(slides.length - 1, x + 1))}><SlideView slide={slides[i]} width={w} /><button className="absolute right-4 top-4 btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close (Esc)</button><span className="absolute bottom-4 right-4 text-xs text-ink-400">{i + 1} / {slides.length}</span></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-100" onClick={() => setI((x) => Math.min(slides.length - 1, x + 1))}><SlideView slide={slides[i]} width={w} /><button className="absolute right-4 top-4 btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close (Esc)</button><span className="absolute bottom-4 right-4 text-xs text-ink-400">{i + 1} / {slides.length}</span></div>;
 }
 
 function toHex(c?: string) { if (!c) return "#000000"; if (/^#[0-9a-f]{6}$/i.test(c)) return c; const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/); if (m) return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`; if (/^#[0-9a-f]{3}$/i.test(c)) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`; return "#000000"; }

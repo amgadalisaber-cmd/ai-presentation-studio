@@ -22,7 +22,7 @@ export function AssetManager({ assets, companyId, showCompany }: { assets: Asset
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {list.map((a) => (
           <div key={a.id} className={`card overflow-hidden ${a.approved ? "" : "opacity-60"}`}>
-            <div className="aspect-video bg-[repeating-conic-gradient(#1a1b22_0_25%,#121217_0_50%)] bg-[length:16px_16px] flex items-center justify-center">{a.mimeType.startsWith("image/") ? <img src={`/api/files/asset/${a.id}`} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-ink-400 uppercase">{a.mimeType.split("/").pop()?.slice(0, 12)}</span>}</div>
+            <div className="aspect-video bg-[repeating-conic-gradient(#f1f5f9_0_25%,#ffffff_0_50%)] bg-[length:16px_16px] flex items-center justify-center">{a.mimeType.startsWith("image/") ? <img src={`/api/files/asset/${a.id}`} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-ink-400 uppercase">{a.mimeType.split("/").pop()?.slice(0, 12)}</span>}</div>
             <div className="p-2.5 space-y-1.5 text-xs">
               <div className="truncate font-medium text-sm" title={a.name}>{a.name}</div>
               <div className="text-ink-500">{fmtBytes(a.size)}{a.width ? ` · ${a.width}×${a.height}` : ""}{showCompany && a.company ? ` · ${a.company.name}` : ""}</div>

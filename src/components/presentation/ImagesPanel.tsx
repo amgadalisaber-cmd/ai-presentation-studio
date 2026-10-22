@@ -31,7 +31,7 @@ export function ImagesPanel({ presentationId, aiImages }: { presentationId: stri
               <div className="flex items-center justify-between"><span className="font-medium text-sm">Slide {img.slide ? img.slide.index + 1 : "—"} <span className="text-ink-500">· {img.slide?.purpose}</span></span><StatusBadge status={img.status} /></div>
               <p className="text-ink-300 line-clamp-2"><span className="text-ink-500">Concept:</span> {img.concept}</p>
               <details><summary className="cursor-pointer text-ink-500">Prompt</summary><p className="mt-1 text-ink-400 whitespace-pre-wrap">{img.prompt}</p></details>
-              {img.error && <p className="text-red-300">{img.error}</p>}
+              {img.error && <p className="text-red-600">{img.error}</p>}
               {editing === img.id && <div className="space-y-1"><textarea className="textarea min-h-[60px]" value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Describe a new visual concept (no text in image)…" /><div className="flex gap-1"><button className="btn-primary btn-sm" onClick={() => act(async () => { await api(`/api/images/${img.id}/regenerate`, { method: "POST", json: { concept } }); setEditing(null); })}>Regenerate with concept</button><button className="btn-ghost btn-sm" onClick={() => setEditing(null)}>Cancel</button></div></div>}
             </div>
             <div className="flex flex-wrap gap-1 border-t border-ink-700 p-2">
