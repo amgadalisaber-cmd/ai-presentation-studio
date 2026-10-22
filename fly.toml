@@ -1,0 +1,32 @@
+# Fly.io: `fly launch --copy-config --no-deploy`, then `fly postgres create`, `fly postgres attach`, `fly volumes create studio_storage --size 10`, `fly deploy`.
+app = "ai-presentation-studio"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  STORAGE_DIR = "/app/storage"
+  NANO_BANANA_MODEL = "gemini-3-pro-image-preview"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/api/health"
+
+[mounts]
+  source = "studio_storage"
+  destination = "/app/storage"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"

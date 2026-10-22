@@ -1,0 +1,28 @@
+# Render Blueprint: one-click deploy (Dashboard → New → Blueprint → select this repo).
+# Creates a PostgreSQL database, a persistent disk for uploads/exports, and the app from the Dockerfile (includes Chromium).
+services:
+  - type: web
+    name: ai-presentation-studio
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: studio-storage
+      mountPath: /app/storage
+      sizeGB: 10
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: studio-db, property: connectionString }
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STORAGE_DIR
+        value: /app/storage
+      - key: NANO_BANANA_MODEL
+        value: gemini-3-pro-image-preview
+      - key: GEMINI_API_KEY
+        sync: false   # set in the Render dashboard (optional: enables AI images + AI amend interpreter)
+databases:
+  - name: studio-db
+    plan: basic-256mb
+    postgresMajorVersion: "16"
