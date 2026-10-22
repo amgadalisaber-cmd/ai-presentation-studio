@@ -19,7 +19,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const tabs = ["profile", "assets", "rules", "styles", "presentations"];
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4"><div><h1 className="h1">{c.name}</h1><p className="muted text-sm mt-1">{c.isClient ? "Client brand profile" : "Company profile"}{c.industry ? ` · ${c.industry}` : ""}</p></div><DeleteButton url={`/api/companies/${c.id}`} label="Delete profile" confirmText={`Delete "${c.name}" and all its assets and rules?`} redirect="/clients" /></div>
+      <div className="flex items-start justify-between gap-4"><div><h1 className="h1">{c.name}</h1><p className="muted text-sm mt-1">{c.isClient ? "Brand" : "Company"}{c.industry ? ` · ${c.industry}` : ""}</p></div><DeleteButton url={`/api/companies/${c.id}`} label="Delete brand" confirmText={`Delete "${c.name}" and all its assets and rules?`} redirect="/clients" /></div>
       <nav className="flex gap-1 border-b border-ink-700">{tabs.map((t) => <Link key={t} href={`/clients/${c.id}?tab=${t}`} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-accent" : "border-transparent text-ink-400 hover:text-ink-200"}`}>{t === "rules" ? "Brand rules" : t === "styles" ? "Concepts" : t}</Link>)}</nav>
       {tab === "profile" && <div className="max-w-4xl space-y-6"><BrandExtractor companyId={c.id} /><ClientForm initial={initial} id={c.id} /></div>}
       {tab === "assets" && <div className="space-y-6"><BrandExtractor companyId={c.id} compact /><AssetManager assets={c.assets.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() }))} companyId={c.id} /></div>}
