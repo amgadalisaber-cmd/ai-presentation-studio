@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  sessions      Session[]
+  companies     Company[]
+  visualStyles  VisualStyle[]
+  presentations Presentation[]
+  assets        BrandAsset[]
+  settings      UserSetting[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model UserSetting {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  value  Json
+  @@unique([userId, key])
+}
+
+/// A Company is any organization: a client brand, an agency, a partner, a sponsor, a recipient.
+/// "Client" in the UI = a Company with isClient = true (it carries a brand profile).
+model Company {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  legalName        String?
+  isClient         Boolean  @default(true)
+  industry         String?
+  description      String?
+  website          String?
+  positioning      String?
+  personality      String?
+  targetAudience   String?
+  colors           Json     @default("[]")   // [{name, hex, role: primary|secondary|accent|background|text}]
+  typography       Json     @default("{}")   // {headingFont, bodyFont, arabicHeadingFont, arabicBodyFont, notes}
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assets           BrandAsset[]
+  guidelines       BrandGuideline[]
+  participants     PresentationParticipant[]
+  styleLinks       CompanyVisualStyle[]
+  presentationCompanies PresentationCompany[]
+}
+
+model BrandAsset {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind        String   // primary_logo | secondary_logo | logo_variation | icon | product_image | photo | reference_presentation | guideline_doc | font | document | other
+  name        String
+  fileName    String
+  mimeType    String
+  size        Int
+  storagePath String
+  width       Int?
+  height      Int?
+  approved    Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  styleRefs   StyleReference[]
+  slideElements SlideElement[]
+}
+
+model BrandGuideline {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category  String   // logo_placement | logo_proportions | clear_space | color_usage | typography | image_treatment | composition | restrictions | dos_donts | other
+  rule      String
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model VisualStyle {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  isBuiltIn     Boolean  @default(false)
+  spec          Json     // StyleSpec (see src/lib/styles/spec.ts)
+  composition   String?
+  layoutRules   String?
+  typography    String?
+  imageTreatment String?
+  backgroundTreatment String?
+  colorBehavior String?
+  lighting      String?
+  density       String?
+  decorative    String?
+  negative      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  references    StyleReference[]
+  companyLinks  CompanyVisualStyle[]
+  presentations Presentation[]
+  slides        Slide[]
+  proposals     StyleProposal[]
+}
+
+model StyleReference {
+  id        String      @id @default(cuid())
+  styleId   String
+  style     VisualStyle @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  assetId   String?
+  asset     BrandAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  url       String?
+  note      String?
+  createdAt DateTime    @default(now())
+}
+
+model CompanyVisualStyle {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  styleId   String
+  style     VisualStyle @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  @@unique([companyId, styleId])
+}
+
+model Presentation {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  type            String
+  customType      String?
+  language        String   @default("en") // ar | en | ar-en | other
+  languageDetected String?
+  status          String   @default("draft") // draft | processing | awaiting_review | completed | failed | exporting | ready
+  sourceContent   String   @default("")      // immutable original content
+  contentSource   String   @default("paste") // paste | upload | import | saved
+  contentLocked   Boolean  @default(false)
+  styleId         String?
+  style           VisualStyle? @relation(fields: [styleId], references: [id], onDelete: SetNull)
+  customDirection String?
+  threeStyleMode  Boolean  @default(false)
+  aiImages        Boolean  @default(false)
+  presentedByEnabled Boolean @default(true)
+  presentedToEnabled Boolean @default(true)
+  metadata        Json     @default("{}")   // {date, version, preparedBy, confidentiality, projectName, referenceNumber, custom:[{label,value}]}
+  projectNotes    String?
+  integrityStatus String   @default("unverified") // unverified | verified | issues
+  integrityReport Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  participants    PresentationParticipant[]
+  companies       PresentationCompany[]
+  blocks          ContentBlock[]
+  slides          Slide[]
+  generatedImages GeneratedImage[]
+  generationJobs  GenerationJob[]
+  exportJobs      ExportJob[]
+  history         ProjectHistory[]
+  proposals       StyleProposal[]
+}
+
+/// Clients/brands involved in the presentation, with a role.
+model PresentationParticipant {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role           String       // primary | secondary | partner | sponsor | collaborator | other
+  roleLabel      String?
+  instructions   String?
+  order          Int          @default(0)
+  @@unique([presentationId, companyId])
+}
+
+/// Presented By / Presented To entries.
+model PresentationCompany {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  section        String       // presented_by | presented_to
+  companyId      String?
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customName     String?
+  title          String?
+  contactName    String?
+  department     String?
+  logoAssetId    String?
+  showLogo       Boolean      @default(true)
+  order          Int          @default(0)
+}
+
+model ContentBlock {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  index          Int
+  kind           String       // heading | subheading | paragraph | list_item | quote | number
+  level          Int          @default(0)
+  text           String       // exact text (list marker removed for list items; marker stored separately)
+  rawText        String       // exact original line(s)
+  marker         String?
+  lang           String       // ar | en | mixed | neutral
+  dir            String       // rtl | ltr
+  sectionIndex   Int          @default(0)
+  elements       SlideElement[]
+  @@unique([presentationId, index])
+}
+
+model Slide {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  index          Int
+  layoutKey      String
+  purpose        String       @default("content") // cover | section | content | list | quote | participants | closing | image
+  background     Json         @default("{}")
+  styleId        String?
+  style          VisualStyle? @relation(fields: [styleId], references: [id], onDelete: SetNull)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  elements       SlideElement[]
+  generatedImages GeneratedImage[]
+}
+
+model SlideElement {
+  id               String        @id @default(cuid())
+  slideId          String
+  slide            Slide         @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  type             String        // text | image | shape | logo
+  origin           String        @default("content") // content | metadata | participant | decoration | user | ai_image
+  x                Float
+  y                Float
+  w                Float
+  h                Float
+  z                Int           @default(0)
+  rotation         Float         @default(0)
+  props            Json          @default("{}")
+  blockId          String?
+  block            ContentBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  fragmentIndex    Int?
+  fragmentCount    Int?
+  assetId          String?
+  asset            BrandAsset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  generatedImageId String?
+  generatedImage   GeneratedImage? @relation(fields: [generatedImageId], references: [id], onDelete: SetNull)
+}
+
+model GeneratedImage {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  slideId        String?
+  slide          Slide?       @relation(fields: [slideId], references: [id], onDelete: SetNull)
+  prompt         String
+  concept        String?
+  provider       String       @default("nano-banana-pro")
+  model          String?
+  status         String       @default("pending") // pending | generating | ready | failed | approved | rejected
+  storagePath    String?
+  mimeType       String?
+  width          Int?
+  height         Int?
+  error          String?
+  attempts       Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  elements       SlideElement[]
+}
+
+model StyleProposal {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  styleId        String
+  style          VisualStyle  @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  order          Int
+  slides         Json         // rendered preview slide models
+  selected       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model GenerationJob {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  kind           String       // plan | three_styles | full | slides | images | image
+  status         String       @default("queued") // queued | running | completed | failed
+  params         Json         @default("{}")
+  result         Json?
+  error          String?
+  progress       Int          @default(0)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model ExportJob {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  formats        Json         // ["pptx","pdf"]
+  status         String       @default("queued") // queued | checking | running | completed | failed
+  integrity      Json?
+  warnings       Json         @default("[]")
+  error          String?
+  verified       Boolean      @default(false)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  files          ExportedFile[]
+}
+
+model ExportedFile {
+  id          String    @id @default(cuid())
+  exportJobId String
+  exportJob   ExportJob @relation(fields: [exportJobId], references: [id], onDelete: Cascade)
+  format      String
+  fileName    String
+  storagePath String
+  size        Int
+  createdAt   DateTime  @default(now())
+}
+
+model ProjectHistory {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  action         String
+  details        Json?
+  createdAt      DateTime     @default(now())
+}

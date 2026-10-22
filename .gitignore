@@ -1,0 +1,8 @@
+node_modules
+.next
+.env
+storage/uploads/*
+storage/generated/*
+storage/exports/*
+!storage/**/.gitkeep
+tests/out/
