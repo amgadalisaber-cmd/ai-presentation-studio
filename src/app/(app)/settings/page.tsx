@@ -13,7 +13,8 @@ export default async function SettingsPage() {
   const row = (label: string, ok: boolean, detail: string) => <div className="flex items-start justify-between gap-4 px-4 py-3 text-sm"><span>{label}<span className="block text-xs text-ink-500">{detail}</span></span><span className={ok ? "badge-verified" : "badge-issues"}>{ok ? "Ready" : "Setup required"}</span></div>;
   return (
     <div className="space-y-8 max-w-4xl">
-      <h1 className="h1">Settings & Integrations</h1>
+      <h1 className="h1">Settings</h1>
+      <div className="flex flex-wrap gap-2 text-sm"><a href="/assets" className="btn-secondary btn-sm">Assets library</a><a href="/history" className="btn-secondary btn-sm">Generation history</a><a href="/status" className="btn-secondary btn-sm">Deployment status</a></div>
       <section className="space-y-2"><h2 className="section-title">Integrations</h2><div className="card divide-y divide-ink-700">
         {row("Nano Banana Pro image generation", img.configured, img.configured ? `Configured (key ${img.keyHint}) · model ${img.model} · planning model ${img.textModel}` : `Set GEMINI_API_KEY in the server environment (.env) and restart. Model: ${img.model}. Keys never reach the browser.`)}
         {row("PDF rendering (Chromium)", !!chromium, chromium ? `Using ${chromium}` : "Set CHROMIUM_PATH to a Chromium/Chrome binary.")}

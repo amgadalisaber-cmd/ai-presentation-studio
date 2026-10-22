@@ -6,6 +6,7 @@ import { ClientForm, type ClientValue } from "@/components/clients/ClientForm";
 import { AssetManager } from "@/components/clients/AssetManager";
 import { GuidelineEditor } from "@/components/clients/GuidelineEditor";
 import { StyleLinks } from "@/components/clients/StyleLinks";
+import { BrandExtractor } from "@/components/clients/BrandExtractor";
 import { DeleteButton } from "@/components/DeleteButton";
 import { StatusBadge } from "@/components/ui";
 
@@ -19,9 +20,9 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4"><div><h1 className="h1">{c.name}</h1><p className="muted text-sm mt-1">{c.isClient ? "Client brand profile" : "Company profile"}{c.industry ? ` · ${c.industry}` : ""}</p></div><DeleteButton url={`/api/companies/${c.id}`} label="Delete profile" confirmText={`Delete "${c.name}" and all its assets and rules?`} redirect="/clients" /></div>
-      <nav className="flex gap-1 border-b border-ink-700">{tabs.map((t) => <Link key={t} href={`/clients/${c.id}?tab=${t}`} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-accent" : "border-transparent text-ink-400 hover:text-ink-200"}`}>{t === "rules" ? "Brand rules" : t === "styles" ? "Visual directions" : t}</Link>)}</nav>
-      {tab === "profile" && <div className="max-w-4xl"><ClientForm initial={initial} id={c.id} /></div>}
-      {tab === "assets" && <AssetManager assets={c.assets.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() }))} companyId={c.id} />}
+      <nav className="flex gap-1 border-b border-ink-700">{tabs.map((t) => <Link key={t} href={`/clients/${c.id}?tab=${t}`} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-accent" : "border-transparent text-ink-400 hover:text-ink-200"}`}>{t === "rules" ? "Brand rules" : t === "styles" ? "Concepts" : t}</Link>)}</nav>
+      {tab === "profile" && <div className="max-w-4xl space-y-6"><BrandExtractor companyId={c.id} /><ClientForm initial={initial} id={c.id} /></div>}
+      {tab === "assets" && <div className="space-y-6"><BrandExtractor companyId={c.id} compact /><AssetManager assets={c.assets.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() }))} companyId={c.id} /></div>}
       {tab === "rules" && <GuidelineEditor companyId={c.id} guidelines={c.guidelines} />}
       {tab === "styles" && <div className="space-y-2"><p className="muted text-sm">Visual direction is independent of identity: link the directions you have used (or plan to use) for this client. The same brand identity applies to every one of them.</p><StyleLinks companyId={c.id} linked={c.styleLinks.map((l) => l.style)} all={styles} /></div>}
       {tab === "presentations" && <div className="card divide-y divide-ink-700">{c.participants.length + c.presentationCompanies.length === 0 && <p className="p-4 text-sm text-ink-500">Not used in any presentation yet.</p>}{c.participants.map((p) => <Link key={p.id} href={`/presentations/${p.presentation.id}`} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-ink-800"><span>{p.presentation.name}<span className="ml-2 text-xs text-ink-500">as {p.roleLabel || p.role}</span></span><StatusBadge status={p.presentation.status} /></Link>)}{c.presentationCompanies.map((p) => <Link key={p.id} href={`/presentations/${p.presentation.id}`} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-ink-800"><span>{p.presentation.name}<span className="ml-2 text-xs text-ink-500">{p.section === "presented_by" ? "presented by" : "presented to"}</span></span><StatusBadge status={p.presentation.status} /></Link>)}</div>}

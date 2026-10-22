@@ -45,36 +45,36 @@ export function GeneratePanel({ presentation, styles, proposals, jobs }: { prese
       <div className="card-pad space-y-5">
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-4">
-            <Toggle on={three} onChange={setThree} label="Mode A — Generate three style examples" description="Representative slides in three distinct directions, compared side by side. Then pick one and generate the rest." />
-            {!three && <div className="space-y-2"><p className="label">Mode B — Generate directly with the selected style</p>{styleId && <p className="text-xs text-ink-500">{styles.find((s) => s.id === styleId)?.name}: {styles.find((s) => s.id === styleId)?.description}</p>}{presentation.customDirection && <p className="text-xs text-ink-400">Custom direction: “{presentation.customDirection}”</p>}</div>}
-            {three && <p className="text-xs text-ink-500">Pick exactly three directions below (numbered in order), or leave the selection empty to let the studio choose three meaningfully different ones.</p>}
+            <Toggle on={three} onChange={setThree} label="Show me three concepts first" description="A few representative slides in three different concepts, side by side. Pick one and the full deck is generated." />
+            {!three && <div className="space-y-2"><p className="label">Selected concept</p>{styleId && <p className="text-xs text-ink-500">{styles.find((s) => s.id === styleId)?.name}: {styles.find((s) => s.id === styleId)?.description}</p>}{presentation.customDirection && <p className="text-xs text-ink-400">Custom direction: “{presentation.customDirection}”</p>}</div>}
+            {three && <p className="text-xs text-ink-500">Pick three concepts below, or leave it to the studio to choose three different ones.</p>}
           </div>
           <div className="space-y-4">
-            <Toggle on={aiImages} onChange={setAiImages} label={`AI-generated images: ${aiImages ? "ON" : "OFF"}`} description={aiImages ? "Slides that benefit from imagery get a Nano Banana Pro image request for review. Text never goes inside images." : "No AI images. Approved uploaded assets of the primary client are used where a layout has an image slot."} />
+            <Toggle on={aiImages} onChange={setAiImages} label="AI-generated images" description={aiImages ? "Relevant slides get generated imagery you can review and replace." : "Off — only your uploaded brand images are used."} />
             <div className="rounded-md border border-ink-700 bg-ink-800/50 p-3 text-xs text-ink-400 space-y-1"><p><strong className="text-ink-200">Content preservation:</strong> wording, numbers, punctuation and order are kept exactly; the engine only positions, sizes, splits across slides and styles your text. Every result is verified against the immutable source.</p>{presentation.slides > 0 && <p className="text-amber-700">Generating again replaces the current {presentation.slides} slides (and their generated images). Use the editor's per-slide regeneration to keep the rest.</p>}</div>
           </div>
         </div>
-        <div className="space-y-2"><p className="label">{three ? `Three directions to compare (${pick.filter(Boolean).length}/3)` : "Visual style"}</p><StylePicker styles={styles} value={three ? pick.filter(Boolean) : styleId ? [styleId] : []} onChange={(ids) => (three ? setPick(ids) : setStyleId(ids[0] || ""))} max={three ? 3 : 1} orientation={presentation.orientation || "landscape"} tone={presentation.tone} /></div>
-        {askDefault && <Alert kind="warn"><div className="flex flex-wrap items-center gap-3"><span>No visual style is selected. Use <strong>Modern Minimal</strong> as the default direction?</span><button className="btn-primary btn-sm" onClick={() => start(true)}>Yes, use Modern Minimal</button><button className="btn-secondary btn-sm" onClick={() => setAskDefault(false)}>No, I'll choose</button></div></Alert>}
+        <div className="space-y-2"><p className="label">{three ? `Concepts to compare (${pick.filter(Boolean).length}/3)` : "Concept"}</p><StylePicker styles={styles} value={three ? pick.filter(Boolean) : styleId ? [styleId] : []} onChange={(ids) => (three ? setPick(ids) : setStyleId(ids[0] || ""))} max={three ? 3 : 1} orientation={presentation.orientation || "landscape"} tone={presentation.tone} /></div>
+        {askDefault && <Alert kind="warn"><div className="flex flex-wrap items-center gap-3"><span>No concept is selected. Use <strong>Modern Minimal</strong> as the default?</span><button className="btn-primary btn-sm" onClick={() => start(true)}>Yes, use Modern Minimal</button><button className="btn-secondary btn-sm" onClick={() => setAskDefault(false)}>No, I'll choose</button></div></Alert>}
         {error && <Alert kind="error">{error}</Alert>}
         <div className="flex items-center gap-3">
-          <button className="btn-primary" disabled={busy || !!running || presentation.blocks === 0} onClick={() => start()}>{three ? <Columns3 size={16} /> : <Sparkles size={16} />}{three ? "Generate three examples" : presentation.slides ? "Regenerate entire presentation" : "Generate presentation"}</button>
-          {presentation.slides > 0 && <Link href={`/presentations/${presentation.id}/editor`} className="btn-secondary">Open editor ({presentation.slides} slides)</Link>}
+          <button className="btn-primary" disabled={busy || !!running || presentation.blocks === 0} onClick={() => start()}>{three ? <Columns3 size={16} /> : <Sparkles size={16} />}{three ? "Show me three concepts" : presentation.slides ? "Regenerate with this concept" : "Generate presentation"}</button>
+          {presentation.slides > 0 && <Link href={`/presentations/${presentation.id}/editor`} className="btn-secondary">Open slides ({presentation.slides})</Link>}
         </div>
       </div>
 
       {job && (
         <div className="card-pad space-y-2">
-          <div className="flex items-center gap-2 text-sm">{running ? <Spinner /> : null}<span className="font-medium">{job.kind === "three_styles" ? "Three-style comparison" : job.kind === "full" ? "Full generation" : "Slide regeneration"}</span><StatusBadge status={job.status} /><span className="text-xs text-ink-500">{new Date(job.createdAt).toLocaleTimeString()}</span></div>
+          <div className="flex items-center gap-2 text-sm">{running ? <Spinner /> : null}<span className="font-medium">{job.kind === "three_styles" ? "Three concepts" : job.kind === "full" ? "Generating the presentation" : "Regenerating slides"}</span><StatusBadge status={job.status} /><span className="text-xs text-ink-500">{new Date(job.createdAt).toLocaleTimeString()}</span></div>
           {job.result?.logs && <ul className="text-xs text-ink-400 space-y-0.5">{job.result.logs.map((l, i) => <li key={i}>· {l}</li>)}</ul>}
           {job.error && <Alert kind="error">{job.error} <button className="underline ml-2" onClick={() => start()}><RefreshCw size={12} className="inline" /> Retry</button></Alert>}
-          {job.status === "completed" && job.kind === "full" && <Link href={`/presentations/${presentation.id}/editor`} className="btn-primary btn-sm mt-2">Review in editor</Link>}
+          {job.status === "completed" && job.kind === "full" && <Link href={`/presentations/${presentation.id}/editor`} className="btn-primary btn-sm mt-2">Open slides</Link>}
         </div>
       )}
 
       {proposals.length > 0 && (
         <div className="space-y-3">
-          <div><h3 className="h2">Compare the three directions</h3><p className="muted text-sm">Same content, same brands — three different compositions, type treatments and image approaches. Select one to generate the full presentation.</p></div>
+          <div><h3 className="h2">Pick a concept</h3><p className="muted text-sm">Same content, same brands — three different concepts. Choose one and the full presentation is generated.</p></div>
           <div className="grid gap-4 lg:grid-cols-3">
             {proposals.map((p) => (
               <div key={p.id} className={`card overflow-hidden ${p.selected ? "border-accent" : ""}`}>

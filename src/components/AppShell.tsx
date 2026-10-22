@@ -1,17 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Presentation, Building2, Palette, Images, History, Settings, LogOut, Plus } from "lucide-react";
+import { LayoutDashboard, Presentation, Building2, Palette, Settings, LogOut, Plus } from "lucide-react";
 import { api } from "@/lib/client";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/presentations", label: "Presentations", icon: Presentation },
-  { href: "/clients", label: "Clients & Brands", icon: Building2 },
-  { href: "/styles", label: "Visual Styles", icon: Palette },
-  { href: "/assets", label: "Assets Library", icon: Images },
-  { href: "/history", label: "Generation History", icon: History },
-  { href: "/settings", label: "Settings & Integrations", icon: Settings },
+  { href: "/styles", label: "Concepts", icon: Palette },
+  { href: "/clients", label: "Brands", icon: Building2 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppShell({ user, children }: { user: { name: string; email: string }; children: React.ReactNode }) {

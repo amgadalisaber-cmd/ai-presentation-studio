@@ -111,7 +111,7 @@ export function Editor({ presentationId }: { presentationId: string }) {
         <div className="mx-2 h-5 w-px bg-ink-700" />
         <button className="btn-secondary btn-sm" disabled={!!running} onClick={() => regenerate(selectedIds)}><RefreshCw size={14} /> Regenerate {selectedIds.length > 1 ? `${selectedIds.length} slides` : "slide"}</button>
         <button className="btn-secondary btn-sm" disabled={!!running} onClick={regenerateAll}><RefreshCw size={14} /> Entire deck</button>
-        <button className="btn-secondary btn-sm" onClick={() => { setStyleChoice(data.presentation.styleId || ""); setStyleModal(true); }}><Palette size={14} /> Change style</button>
+        <button className="btn-secondary btn-sm" onClick={() => { setStyleChoice(data.presentation.styleId || ""); setStyleModal(true); }}><Palette size={14} /> Change concept</button>
         <div className="ml-auto flex items-center gap-2">
           {running && <span className="flex items-center gap-1 text-xs text-ink-400"><Spinner /> Regenerating…</span>}
           {msg && <span className="text-xs text-emerald-600">{msg}</span>}
@@ -184,11 +184,11 @@ export function Editor({ presentationId }: { presentationId: string }) {
       </div>
 
       <AssetPicker open={picker !== null} onClose={() => setPicker(null)} onPick={(a) => (picker === "replace" ? replaceImage(a) : picker === "background" ? setBackgroundImage(a) : addImage(a))} />
-      <Modal open={styleModal} onClose={() => setStyleModal(false)} title="Change visual style">
+      <Modal open={styleModal} onClose={() => setStyleModal(false)} title="Change concept">
         <div className="space-y-3">
-          <select className="select" value={styleChoice} onChange={(e) => setStyleChoice(e.target.value)}><option value="">— choose a style —</option>{data.styles.map((s) => <option key={s.id} value={s.id}>{s.name}{s.isBuiltIn ? "" : " (custom)"}</option>)}</select>
-          <Toggle on={styleScope === "all"} onChange={(b) => setStyleScope(b ? "all" : "slides")} label={styleScope === "all" ? "Apply to the entire presentation" : `Apply to ${selectedIds.length} selected slide(s) only`} description="Slides are re-laid out in the new style. Content, brand identity and approved images are preserved." />
-          <div className="flex justify-end gap-2"><button className="btn-secondary" onClick={() => setStyleModal(false)}>Cancel</button><button className="btn-primary" disabled={!styleChoice} onClick={changeStyle}>Apply style</button></div>
+          <select className="select" value={styleChoice} onChange={(e) => setStyleChoice(e.target.value)}><option value="">— choose a concept —</option>{data.styles.map((s) => <option key={s.id} value={s.id}>{s.name}{s.isBuiltIn ? "" : " (custom)"}</option>)}</select>
+          <Toggle on={styleScope === "all"} onChange={(b) => setStyleScope(b ? "all" : "slides")} label={styleScope === "all" ? "Apply to the entire presentation" : `Apply to ${selectedIds.length} selected slide(s) only`} description="Slides are re-laid out in the new concept. Content, brand identity and approved images are preserved." />
+          <div className="flex justify-end gap-2"><button className="btn-secondary" onClick={() => setStyleModal(false)}>Cancel</button><button className="btn-primary" disabled={!styleChoice} onClick={changeStyle}>Apply concept</button></div>
         </div>
       </Modal>
       {preview && <Preview slides={slides} start={cur} onClose={() => setPreview(false)} />}

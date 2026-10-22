@@ -47,3 +47,4 @@ body { @apply bg-ink-950 text-ink-100 antialiased; font-family: Inter, 'Cairo', 
 .toggle[data-on="true"] { @apply bg-accent border-accent; }
 .toggle span { @apply inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform; }
 .toggle[data-on="true"] span { @apply translate-x-6 bg-white; }
+.step { @apply inline-flex h-7 w-7 flex-none items-center justify-center rounded-full bg-accent-soft text-accent-dim text-xs font-semibold; }

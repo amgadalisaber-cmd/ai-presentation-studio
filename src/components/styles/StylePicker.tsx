@@ -21,7 +21,7 @@ export function StylePicker({ styles, value, onChange, max = 1, orientation = "l
       {styles.map((s) => { const sel = value.includes(s.id); const order = value.indexOf(s.id); return (
         <button type="button" key={s.id} onClick={() => toggle(s.id)} className={`card overflow-hidden text-left transition-colors hover:border-ink-500 ${sel ? "border-accent ring-1 ring-accent/50" : ""}`}>
           <div className={`grid gap-px bg-ink-700 ${orientation === "portrait" ? "grid-cols-2" : "grid-cols-1"}`}>{previews[s.id].map((sl, i) => <SlideView key={i} slide={sl} />)}</div>
-          <div className="p-2.5"><div className="flex items-center justify-between gap-2 text-sm"><span className="font-medium truncate">{s.name}</span>{sel && <span className="flex-none inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white text-[11px] font-semibold">{max > 1 ? order + 1 : <Check size={12} />}</span>}</div><div className="text-[11px] text-ink-500 truncate">{s.tone ? `${s.tone} · ` : ""}{s.isBuiltIn ? "built-in" : "custom"}{s.description ? ` · ${s.description}` : ""}</div></div>
+          <div className="p-2.5"><div className="flex items-center justify-between gap-2 text-sm"><span className="font-medium truncate">{s.name}</span>{sel && <span className="flex-none inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white text-[11px] font-semibold">{max > 1 ? order + 1 : <Check size={12} />}</span>}</div><div className="text-[11px] text-ink-500 truncate">{s.tone ? `${s.tone} · ` : ""}{s.description || (s.isBuiltIn ? "" : "custom")}</div></div>
         </button>); })}
     </div>
   );

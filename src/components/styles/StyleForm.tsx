@@ -9,6 +9,7 @@ import type { StyleSpec } from "@/lib/styles/spec";
 import { previewSlides } from "@/lib/styles/preview";
 import { FontSelect } from "@/components/FontSelect";
 import { TONES } from "@/lib/types";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export interface StyleValue { name: string; description: string; tone: string; voice: string; spec: StyleSpec; composition: string; layoutRules: string; typography: string; imageTreatment: string; backgroundTreatment: string; colorBehavior: string; lighting: string; density: string; decorative: string; negative: string }
 type Ref = { id: string; url?: string | null; note?: string | null; asset?: { id: string; name: string; mimeType: string } | null };
@@ -18,13 +19,14 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
   const set = <K extends keyof StyleValue>(k: K, val: StyleValue[K]) => setV((s) => ({ ...s, [k]: val }));
   const spec = <K extends keyof StyleSpec>(k: K, patch: Partial<StyleSpec[K]>) => setV((s) => ({ ...s, spec: { ...s.spec, [k]: typeof s.spec[k] === "object" && !Array.isArray(s.spec[k]) ? { ...(s.spec[k] as object), ...patch } : patch } }));
   const readOnly = !!isBuiltIn;
+  const [advanced, setAdvanced] = useState(false);
   const save = async () => {
     setBusy(true); setError(null);
     try { if (!v.name.trim()) throw new Error("Name is required"); if (id) { await api(`/api/styles/${id}`, { method: "PATCH", json: v }); router.refresh(); } else { const s = await api<{ id: string }>("/api/styles", { method: "POST", json: v }); router.push(`/styles/${s.id}`); router.refresh(); } }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   const duplicate = async () => { const s = await api<{ id: string }>(`/api/styles/${id}/duplicate`, { method: "POST" }); router.push(`/styles/${s.id}`); router.refresh(); };
-  const del = async () => { if (!confirm(`Delete style "${v.name}"?`)) return; await api(`/api/styles/${id}`, { method: "DELETE" }); router.push("/styles"); router.refresh(); };
+  const del = async () => { if (!confirm(`Delete concept "${v.name}"?`)) return; await api(`/api/styles/${id}`, { method: "DELETE" }); router.push("/styles"); router.refresh(); };
   const addRefFile = async (file: File) => { setBusy(true); try { const a = await upload<{ id: string }>("/api/assets", { file, kind: "style_reference", name: file.name }); await api(`/api/styles/${id}/references`, { method: "POST", json: { assetId: a.id, note: refNote } }); setRefNote(""); router.refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } };
   const addRefUrl = async () => { if (!refUrl.trim()) return; await api(`/api/styles/${id}/references`, { method: "POST", json: { url: refUrl.trim(), note: refNote } }); setRefUrl(""); setRefNote(""); router.refresh(); };
   const preview = previewSlides(v.spec, v.name, "landscape", v.tone || undefined);
@@ -33,8 +35,8 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
     <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
       <div className="space-y-5">
         {error && <Alert kind="error">{error}</Alert>}
-        {readOnly && <Alert kind="info">Built-in style (read-only). <button className="underline" onClick={duplicate}>Duplicate</button> it to customise.</Alert>}
-        <div className="grid gap-4 md:grid-cols-2"><Field label="Style name *"><input className="input" disabled={readOnly} value={v.name} onChange={(e) => set("name", e.target.value)} /></Field><Field label="Description"><input className="input" disabled={readOnly} value={v.description} onChange={(e) => set("description", e.target.value)} /></Field>
+        {readOnly && <Alert kind="info">Built-in concept (read-only). <button className="underline" onClick={duplicate}>Duplicate</button> it to make it yours.</Alert>}
+        <div className="grid gap-4 md:grid-cols-2"><Field label="Concept name *"><input className="input" disabled={readOnly} value={v.name} onChange={(e) => set("name", e.target.value)} /></Field><Field label="Description"><input className="input" disabled={readOnly} value={v.description} onChange={(e) => set("description", e.target.value)} /></Field>
           <Field label="Tone" hint="Default mood of this direction; a presentation can override it."><select className="select" disabled={readOnly} value={v.tone} onChange={(e) => setV((x) => ({ ...x, tone: e.target.value, spec: { ...x.spec, tone: e.target.value || undefined } }))}><option value="">— none —</option>{TONES.map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></Field>
           <Field label="Voice" hint="How the direction should feel, in words (used in image prompts)."><input className="input" disabled={readOnly} value={v.voice} onChange={(e) => setV((x) => ({ ...x, voice: e.target.value, spec: { ...x.spec, voice: e.target.value || undefined } }))} placeholder="e.g. serious, understated, premium" /></Field></div>
         <fieldset disabled={readOnly} className="space-y-5">
@@ -43,6 +45,11 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
             <Field label="How brand colors interact with this style" hint="brand-accent: brand primary becomes the accent · brand-dominant: brand primary becomes the background · style-dominant / monochrome: style palette only (brand colors in logos)."><select className="select" value={v.spec.colorBehavior} onChange={(e) => setV((s) => ({ ...s, spec: { ...s.spec, colorBehavior: e.target.value as StyleSpec["colorBehavior"] } }))}><option value="brand-accent">brand-accent</option><option value="brand-dominant">brand-dominant</option><option value="style-dominant">style-dominant</option><option value="monochrome">monochrome</option></select></Field>
             <Field label="Color behaviour notes"><input className="input" value={v.colorBehavior} onChange={(e) => set("colorBehavior", e.target.value)} /></Field>
           </section>
+          <section className="card-pad space-y-3"><h3 className="section-title">Fonts</h3>
+            <div className="grid gap-3 md:grid-cols-4"><Field label="Heading"><FontSelect disabled={readOnly} value={F.heading} onChange={(f) => spec("fonts", { heading: f })} /></Field><Field label="Body"><FontSelect disabled={readOnly} value={F.body} onChange={(f) => spec("fonts", { body: f })} /></Field><Field label="Arabic heading"><FontSelect arabic disabled={readOnly} value={F.arabicHeading} onChange={(f) => spec("fonts", { arabicHeading: f })} /></Field><Field label="Arabic body"><FontSelect arabic disabled={readOnly} value={F.arabicBody} onChange={(f) => spec("fonts", { arabicBody: f })} /></Field></div>
+          </section>
+          <button type="button" className="btn-secondary w-full justify-between" onClick={() => setAdvanced(!advanced)}><span>Advanced: composition, typography scale, image & background treatment, decorative elements</span>{advanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
+          {advanced && <>
           <section className="card-pad space-y-3"><h3 className="section-title">Composition & layout rules</h3>
             <div className="grid gap-3 md:grid-cols-3">
               <Field label="Cover layout"><select className="select" value={C.coverLayout} onChange={(e) => spec("composition", { coverLayout: e.target.value as StyleSpec["composition"]["coverLayout"] })}>{["left-stack", "centered", "split", "bottom-band", "poster", "grid"].map((o) => <option key={o}>{o}</option>)}</select></Field>
@@ -90,8 +97,9 @@ export function StyleForm({ initial, id, isBuiltIn, references = [] }: { initial
             <Field label="Decorative elements notes"><input className="input" value={v.decorative} onChange={(e) => set("decorative", e.target.value)} /></Field>
             <Field label="Negative instructions (one per line)"><textarea className="textarea min-h-[60px]" value={v.spec.negative.join("\n")} onChange={(e) => setV((s) => ({ ...s, spec: { ...s.spec, negative: e.target.value.split("\n").filter(Boolean) }, negative: e.target.value }))} /></Field>
           </section>
+          </>}
         </fieldset>
-        <div className="flex items-center gap-2">{!readOnly && <button className="btn-primary" disabled={busy} onClick={save}>{busy ? <Spinner /> : null}{id ? "Save style" : "Create style"}</button>}{id && <button className="btn-secondary" onClick={duplicate}><Copy size={14} /> Duplicate</button>}{id && !readOnly && <button className="btn-danger ml-auto" onClick={del}><Trash2 size={14} /> Delete</button>}</div>
+        <div className="flex items-center gap-2">{!readOnly && <button className="btn-primary" disabled={busy} onClick={save}>{busy ? <Spinner /> : null}{id ? "Save concept" : "Create concept"}</button>}{id && <button className="btn-secondary" onClick={duplicate}><Copy size={14} /> Duplicate</button>}{id && !readOnly && <button className="btn-danger ml-auto" onClick={del}><Trash2 size={14} /> Delete</button>}</div>
       </div>
       <div className="space-y-4">
         <div className="card-pad space-y-2"><h3 className="section-title">Live preview</h3><p className="text-xs text-ink-500">Sample slides rendered with this spec (cover, section, content, list).</p>{preview.map((s, i) => <SlideView key={i} slide={s} className="rounded border border-ink-700" />)}</div>
